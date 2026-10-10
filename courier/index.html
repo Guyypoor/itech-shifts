@@ -1,0 +1,718 @@
+<!doctype html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="מסלול שליח">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0B6B3A">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>מסלול שליח</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Assistant:wght@400;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<style>
+/* Layout: one narrow column, built for a phone on the dashboard. Road-sign green for actions, amber marks the next stop. */
+:root{
+  --bg:#EEF2EF; --surface:#FFFFFF; --ink:#15201A; --muted:#5A6A61; --line:#D3DCD6;
+  --sign:#0B6B3A; --sign-ink:#FFFFFF; --amber:#E39B12; --amber-soft:#FFF4DC; --done:#97A69D; --danger:#B3261E;
+  --font-display:"Rubik","Assistant",system-ui,sans-serif;
+  --font-body:"Assistant","Rubik",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1411; --surface:#16201A; --ink:#E4EDE8; --muted:#94A49B; --line:#26342C;
+  --sign:#1E9457; --sign-ink:#FFFFFF; --amber:#F2B23A; --amber-soft:#3A2E12; --done:#5F6E66; --danger:#F2867E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1411; --surface:#16201A; --ink:#E4EDE8; --muted:#94A49B; --line:#26342C;
+  --sign:#1E9457; --sign-ink:#FFFFFF; --amber:#F2B23A; --amber-soft:#3A2E12; --done:#5F6E66; --danger:#F2867E; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.45;direction:rtl}
+.wrap{max-width:720px;margin:0 auto;padding-inline:16px;padding-block:0 40px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--sign);color:var(--sign-ink);margin-inline:-16px;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.top h1{font-family:var(--font-display);font-weight:800;font-size:1.35rem;margin:0;letter-spacing:.2px;text-wrap:balance}
+.top .date{opacity:.85;font-size:.9rem}
+.progress{margin-inline-start:auto;display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;font-weight:700}
+.bar{width:90px;height:8px;border-radius:99px;background:rgba(255,255,255,.28);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--sign-ink);width:0}
+section{margin-top:18px}
+.label{font-family:var(--font-display);font-weight:700;font-size:.8rem;letter-spacing:.6px;color:var(--muted);margin:0 0 8px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tab{flex:1 1 0;min-width:96px;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:10px 8px;font:600 .95rem var(--font-body);cursor:pointer}
+.tab[aria-selected="true"]{background:var(--sign);border-color:var(--sign);color:var(--sign-ink)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1 1 160px;min-width:0}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted);font-weight:600}
+input[type=text],input[type=tel],textarea,select{width:100%;font:400 1rem var(--font-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+textarea{min-height:120px;resize:vertical}
+input:focus,textarea:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid var(--amber);outline-offset:1px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:10px;padding:11px 16px;font:700 1rem var(--font-body);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn.primary{background:var(--sign);color:var(--sign-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.amber{background:var(--amber);color:#1C1404}
+.btn.danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+.btn:disabled{opacity:.5;cursor:default}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.hint{font-size:.85rem;color:var(--muted);margin:8px 0 0}
+.preview{margin-top:10px;max-height:220px;overflow:auto;border-top:1px dashed var(--line);padding-top:8px;font-size:.92rem}
+.preview div{padding:3px 0;border-bottom:1px solid var(--line)}
+.preview small{color:var(--muted)}
+.start{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.start>label{flex:1 1 220px}
+.banner{background:var(--amber-soft);border:1px solid var(--amber);border-radius:10px;padding:10px 12px;font-size:.92rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner span{flex:1 1 200px}
+.status{font-size:.9rem;color:var(--muted);min-height:1.2em;margin-top:8px}
+ol.stops{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.stop{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px}
+.stop.next{border:2px solid var(--amber);box-shadow:0 0 0 4px var(--amber-soft)}
+.stop.done{opacity:.62}
+.stop.done .addr{text-decoration:line-through;text-decoration-color:var(--done)}
+.num{grid-row:span 3;width:38px;height:38px;border-radius:9px;background:var(--sign);color:var(--sign-ink);display:grid;place-items:center;font:800 1.05rem var(--font-display);font-variant-numeric:tabular-nums}
+.stop.next .num{background:var(--amber);color:#1C1404}
+.stop.done .num{background:var(--done)}
+.addr{font:700 1.08rem var(--font-display);min-width:0;overflow-wrap:anywhere}
+.meta{font-size:.9rem;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;min-width:0}
+.meta b{color:var(--ink);font-weight:600}
+.tag{font:700 .72rem var(--font-display);letter-spacing:.5px;color:#1C1404;background:var(--amber);border-radius:6px;padding:1px 7px;margin-inline-start:6px;vertical-align:middle}
+.sactions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.sactions .btn{padding:9px 12px;font-size:.92rem}
+.sm{padding:7px 10px!important;font-size:.85rem!important}
+.edit{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:22px;text-align:center;color:var(--muted)}
+.routebar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px}
+.copyout{width:100%;min-height:120px;margin-top:8px}
+.geo{font-weight:600;color:var(--muted)}
+.geo.bad{color:var(--danger)}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.thumbs img{width:72px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line);max-width:100%}
+@media (prefers-reduced-motion:no-preference){.stop{transition:opacity .2s,border-color .2s}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>מסלול שליח</h1>
+      <div class="date" id="today"></div>
+    </div>
+    <div class="progress" aria-live="polite"><span id="progTxt">0/0 נמסרו</span><span class="bar"><i id="progBar"></i></span></div>
+  </header>
+
+  <div id="exampleBanner" class="banner" hidden style="margin-top:14px">
+    <span>זה מסלול לדוגמה כדי לראות איך זה עובד. הכתובות לא אמיתיות.</span>
+    <button class="btn ghost sm" id="clearExample" type="button">נקה והתחל מסלול שלי</button>
+  </div>
+
+  <section aria-labelledby="startLbl">
+    <p class="label" id="startLbl">נקודת יציאה ועיר ברירת מחדל</p>
+    <div class="panel start">
+      <label class="f" for="startAddr">יוצאים מ־
+        <input type="text" id="startAddr" placeholder="למשל: הדקלים 104, פרדס חנה-כרכור" autocomplete="off">
+      </label>
+      <label class="f" for="defCity">עיר, אם לא כתובה בכתובת
+        <input type="text" id="defCity" placeholder="פרדס חנה-כרכור" autocomplete="off">
+      </label>
+    </div>
+  </section>
+
+  <section aria-labelledby="addLbl">
+    <p class="label" id="addLbl">הוספת כתובות</p>
+    <div class="panel">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-wa" aria-controls="pane-wa" aria-selected="true" type="button">מוואטסאפ</button>
+        <button class="tab" role="tab" id="tab-img" aria-controls="pane-img" aria-selected="false" type="button">מצילום מסך</button>
+        <button class="tab" role="tab" id="tab-xl" aria-controls="pane-xl" aria-selected="false" type="button">מאקסל</button>
+        <button class="tab" role="tab" id="tab-man" aria-controls="pane-man" aria-selected="false" type="button">ידני</button>
+      </div>
+
+      <div id="pane-wa" role="tabpanel" aria-labelledby="tab-wa">
+        <label class="f" for="waText">מדביקים כאן את ההודעה או כמה הודעות מהקבוצה. כל כתובת בשורה משלה.
+          <textarea id="waText" placeholder="[10.10.2026, 08:12] גיא: הרצל 12 חדרה 052-1234567&#10;מיכל לוי – הנשיא 7, בנימינה&#10;3. דרך הבנים 40 פרדס חנה"></textarea>
+        </label>
+        <div class="actions">
+          <button class="btn primary" id="waParse" type="button">זהה כתובות</button>
+          <button class="btn ghost" id="waAi" type="button" hidden>זיהוי חכם (הודעה מבולגנת)</button>
+        </div>
+        <div id="waPreview" class="preview" hidden></div>
+        <div class="actions" id="waAddRow" hidden><button class="btn amber" id="waAdd" type="button">הוסף למסלול</button></div>
+      </div>
+
+      <div id="pane-img" role="tabpanel" aria-labelledby="tab-img" hidden>
+        <label class="f" for="imgFile">צילום מסך של הזמנה, רשימה או הודעה. אפשר כמה תמונות ביחד.
+          <input type="file" id="imgFile" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
+        </label>
+        <div id="imgThumbs" class="thumbs" hidden></div>
+        <div class="actions">
+          <button class="btn primary" id="imgParse" type="button" disabled>קרא כתובות מהתמונה</button>
+          <button class="btn ghost" id="imgAi" type="button" hidden disabled>קריאה מדויקת עם Claude</button>
+        </div>
+        <p class="hint" id="imgHint">הקריאה נעשית כאן בטלפון, בלי לשלוח את התמונה לשום מקום. בפעם הראשונה זה לוקח כמה שניות. לפני ההוספה תוכל לבדוק מה זוהה.</p>
+        <div id="imgPreview" class="preview" hidden></div>
+        <div class="actions" id="imgAddRow" hidden><button class="btn amber" id="imgAdd" type="button">הוסף למסלול</button></div>
+      </div>
+
+      <div id="pane-xl" role="tabpanel" aria-labelledby="tab-xl" hidden>
+        <label class="f" for="xlFile">קובץ אקסל או CSV עם עמודת כתובת
+          <input type="file" id="xlFile" accept=".xlsx,.xls,.csv">
+        </label>
+        <div id="xlMap" hidden>
+          <div class="row" style="margin-top:10px">
+            <label class="f" for="mAddr">עמודת כתובת / רחוב<select id="mAddr"></select></label>
+            <label class="f" for="mNum">מספר בית<select id="mNum"></select></label>
+            <label class="f" for="mCity">עיר<select id="mCity"></select></label>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <label class="f" for="mName">שם לקוח<select id="mName"></select></label>
+            <label class="f" for="mPhone">טלפון<select id="mPhone"></select></label>
+            <label class="f" for="mNote">הערה<select id="mNote"></select></label>
+          </div>
+          <div id="xlPreview" class="preview"></div>
+          <div class="actions"><button class="btn amber" id="xlAdd" type="button">הוסף למסלול</button></div>
+        </div>
+        <p class="hint">הקובץ נקרא רק כאן בדפדפן ולא נשלח לשום מקום.</p>
+      </div>
+
+      <div id="pane-man" role="tabpanel" aria-labelledby="tab-man" hidden>
+        <form id="manForm">
+          <div class="row">
+            <label class="f" for="manAddr">כתובת (רחוב ומספר)<input type="text" id="manAddr" required autocomplete="off"></label>
+            <label class="f" for="manCity">עיר<input type="text" id="manCity" autocomplete="off" placeholder="ריק = עיר ברירת המחדל"></label>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <label class="f" for="manName">שם<input type="text" id="manName" autocomplete="off"></label>
+            <label class="f" for="manPhone">טלפון<input type="tel" id="manPhone" autocomplete="off"></label>
+            <label class="f" for="manNote">הערה<input type="text" id="manNote" autocomplete="off" placeholder="קומה, קוד, להשאיר ליד הדלת"></label>
+          </div>
+          <div class="actions"><button class="btn amber" type="submit">הוסף עצירה</button></div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="routeLbl">
+    <p class="label" id="routeLbl">המסלול</p>
+    <div class="routebar">
+      <button class="btn primary" id="orderGeo" type="button">סדר מסלול קצר</button>
+      <button class="btn ghost" id="orderBasic" type="button">סדר לפי עיר ורחוב</button>
+      <button class="btn ghost" id="openGmaps" type="button">כל המסלול בגוגל מפות</button>
+      <button class="btn ghost" id="copyWa" type="button">העתק לוואטסאפ</button>
+      <button class="btn danger" id="clearAll" type="button">נקה הכל</button>
+    </div>
+    <div class="status" id="status" role="status"></div>
+    <div id="gmapsLinks" class="actions" hidden></div>
+    <p class="hint">נתוני מפה: © OpenStreetMap contributors</p>
+    <textarea id="copyOut" class="copyout" hidden readonly aria-label="טקסט להעתקה"></textarea>
+    <ol class="stops" id="stops"></ol>
+  </section>
+</div>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const KEY = "courier-route-v1";
+const EXAMPLE = [
+  {addr:"הדקלים 20", city:"פרדס חנה-כרכור", name:"לקוח לדוגמה 1", phone:"050-0000001", note:""},
+  {addr:"הרברט סמואל 30", city:"חדרה", name:"לקוח לדוגמה 2", phone:"", note:"קומה 3"},
+  {addr:"הנשיאים 5", city:"בנימינה-גבעת עדה", name:"לקוח לדוגמה 3", phone:"", note:""},
+  {addr:"דרך הבנים 40", city:"פרדס חנה-כרכור", name:"", phone:"050-0000004", note:"להשאיר ליד הדלת"},
+  {addr:"הגפן 8", city:"חדרה", name:"לקוח לדוגמה 5", phone:"", note:""}
+];
+let state = load();
+
+function uid(){return Math.random().toString(36).slice(2,9)}
+function load(){
+  let s=null;
+  try{ s=JSON.parse(localStorage.getItem(KEY)||"null"); }catch(e){}
+  if(!s||!Array.isArray(s.stops)){
+    s={start:"הדקלים 104, פרדס חנה-כרכור", defCity:"פרדס חנה-כרכור", example:true,
+       stops:EXAMPLE.map(x=>({...x,id:uid(),done:false,doneAt:null}))};
+  }
+  return s;
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+
+/* ---------- helpers ---------- */
+function full(st){
+  const city = (st.city||"").trim() || (hasCity(st.addr)?"":(state.defCity||"").trim());
+  return [st.addr.trim(), city].filter(Boolean).join(", ");
+}
+function hasCity(a){ a=a||""; return /,/.test(a) || /\d+[א-ת]?\s+[א-תA-Za-z"'׳-]{2,}/.test(a); }
+function waze(q){ return "https://waze.com/ul?q="+encodeURIComponent(q)+"&navigate=yes"; }
+function gmaps(q){ return "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(q)+"&travelmode=driving"; }
+function setStatus(t){ $("#status").textContent=t||""; }
+function el(tag,attrs={},...kids){
+  const n=document.createElement(tag);
+  for(const [k,v] of Object.entries(attrs)){
+    if(k==="class") n.className=v; else if(k==="text") n.textContent=v;
+    else if(k.startsWith("on")) n.addEventListener(k.slice(2),v); else if(v!=null) n.setAttribute(k,v);
+  }
+  for(const k of kids){ if(k!=null) n.append(k); }
+  return n;
+}
+function copyText(text, fallbackEl){
+  const done=()=>setStatus("הועתק. אפשר להדביק בוואטסאפ.");
+  try{
+    navigator.clipboard.writeText(text).then(done,()=>showFallback());
+  }catch(e){ showFallback(); }
+  function showFallback(){ fallbackEl.hidden=false; fallbackEl.value=text; fallbackEl.focus(); fallbackEl.select(); setStatus("סמן והעתק את הטקסט שמתחת."); }
+}
+
+/* ---------- WhatsApp parsing ---------- */
+const PHONE_RE=/(?:\+?972[-\s]?|0)(?:5\d|[2-489]|7\d)[-\s]?\d{3}[-\s]?\d{4}/;
+function cleanLine(l){
+  l=l.replace(/‏|‎|‪|‫|‬|⁨|⁩/g,"").trim();
+  l=l.replace(/^\[?\d{1,2}[./]\d{1,2}[./]\d{2,4},?\s*\d{1,2}:\d{2}(?::\d{2})?\]?\s*(?:-\s*)?/,"");
+  l=l.replace(/^[^:\d]{1,30}:\s+/,"");          // sender name before colon
+  l=l.replace(/^(\d{1,2}[.)]|[-•*–])\s*/,"");    // list markers
+  return l.trim();
+}
+function parseWhatsApp(text){
+  const out=[]; let pendingName="";
+  for(const raw of text.split(/\r?\n/)){
+    let l=cleanLine(raw).replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g," ").replace(/\b\d{1,2}[./]\d{1,2}[./]\d{2,4}\b/g," ").replace(/[|_~^`]+/g," ").replace(/\s{2,}/g," ").trim();
+    if(!l||/המדיה הושמטה|הודעה זו נמחקה|image omitted|<.*>/.test(l)) continue;
+    let phone=""; const m=l.match(PHONE_RE);
+    if(m){ phone=m[0].replace(/\s/g,""); l=l.replace(m[0]," ").replace(/\s{2,}/g," ").trim(); }
+    if(!/\d/.test(l)){                           // no house number: probably a name line
+      if(l.length<=30){ if(/[א-תA-Za-z]{2,}/.test(l)) pendingName=l; if(phone&&out.length&&!out[out.length-1].phone&&!pendingName) out[out.length-1].phone=phone; continue; }
+    }
+    let name=pendingName; pendingName="";
+    const dash=l.split(/\s+[–-]\s+/);
+    if(dash.length===2){
+      const [a,b]=dash; if(!/\d/.test(a)&&/\d/.test(b)){ name=name||a.trim(); l=b.trim(); }
+      else if(/\d/.test(a)&&!/\d/.test(b)&&b.length<=30){ name=name||b.trim(); l=a.trim(); }
+    }
+    l=l.replace(/[,\s]+$/,"");
+    if(!/[א-ת]{2,}/.test(l)||!/\d/.test(l)) continue;
+    if(l) out.push({addr:l, city:"", name, phone, note:""});
+  }
+  return out;
+}
+
+/* ---------- Excel ---------- */
+let xlRows=[], xlHead=[];
+const GUESS={
+  mAddr:/כתובת|רחוב|address|street/i, mNum:/מס(?:פר)?['׳]?\s*בית|^מספר$|house|no\.?$/i,
+  mCity:/עיר|ישוב|יישוב|city|town/i, mName:/שם|לקוח|נמען|name|customer/i,
+  mPhone:/טלפון|נייד|פלאפון|phone|mobile|tel/i, mNote:/הער|note|comment/i
+};
+function readExcel(file){
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      if(typeof XLSX==="undefined") throw new Error("nolib");
+      const wb=XLSX.read(new Uint8Array(rd.result),{type:"array"});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false}).filter(r=>r.some(c=>String(c).trim()));
+      if(!rows.length){ setStatus("הקובץ ריק."); return; }
+      let hi=rows.findIndex(r=>r.some(c=>Object.values(GUESS).some(rx=>rx.test(String(c)))));
+      if(hi<0||hi>5){ hi=-1; }
+      xlHead = hi>=0 ? rows[hi].map((c,i)=>String(c).trim()||("עמודה "+(i+1))) : rows[0].map((_,i)=>"עמודה "+(i+1));
+      xlRows = rows.slice(hi+1);
+      buildMapping(); $("#xlMap").hidden=false; renderXlPreview();
+    }catch(e){ setStatus(e.message==="nolib"?"לא הצלחתי לטעון את קורא האקסל. נסה לשמור את הקובץ כ-CSV.":"לא הצלחתי לקרוא את הקובץ. ודא שזה xlsx או csv."); }
+  };
+  rd.readAsArrayBuffer(file);
+}
+function buildMapping(){
+  for(const id of Object.keys(GUESS)){
+    const s=$("#"+id); s.innerHTML="";
+    s.append(el("option",{value:"-1",text:"— אין —"}));
+    xlHead.forEach((h,i)=>s.append(el("option",{value:String(i),text:h})));
+    let pick=xlHead.findIndex(h=>GUESS[id].test(h));
+    if(id==="mName"&&pick>=0&&GUESS.mAddr.test(xlHead[pick])) pick=-1;
+    if(id==="mAddr"&&pick<0){ // best guess: column with most "letters + digit" cells
+      let best=-1,bs=0; xlHead.forEach((_,i)=>{const sc=xlRows.filter(r=>/[א-תa-z].*\d|\d.*[א-תa-z]/i.test(String(r[i]||""))).length; if(sc>bs){bs=sc;best=i;}}); pick=best;
+    }
+    s.value=String(pick);
+  }
+}
+function xlItems(){
+  const g=id=>Number($("#"+id).value);
+  const ia=g("mAddr"),inum=g("mNum"),ic=g("mCity"),iname=g("mName"),ip=g("mPhone"),inote=g("mNote");
+  const v=(r,i)=>i>=0?String(r[i]??"").trim():"";
+  return xlRows.map(r=>{
+    let addr=v(r,ia); const num=v(r,inum); if(num&&!addr.includes(num)) addr=addr+" "+num;
+    return {addr:addr.trim(), city:v(r,ic), name:v(r,iname), phone:v(r,ip), note:v(r,inote)};
+  }).filter(x=>x.addr);
+}
+function renderXlPreview(){
+  const items=xlItems(); const p=$("#xlPreview"); p.innerHTML="";
+  p.append(el("p",{class:"hint",text:items.length+" כתובות נמצאו"}));
+  items.slice(0,40).forEach(x=>p.append(el("div",{},x.addr+(x.city?", "+x.city:""),x.name?el("small",{text:" · "+x.name}):null)));
+}
+
+/* ---------- adding ---------- */
+function addStops(items){
+  if(state.example){ state.stops=[]; state.example=false; }
+  const seen=new Set(state.stops.map(s=>full(s)));
+  let added=0;
+  for(const it of items){
+    const st={id:uid(),addr:it.addr,city:it.city||"",name:it.name||"",phone:it.phone||"",note:it.note||"",done:false,doneAt:null};
+    if(seen.has(full(st))) continue; seen.add(full(st)); state.stops.push(st); added++;
+  }
+  save(); render();
+  const skipped=items.length-added;
+  setStatus("נוספו "+added+" עצירות"+(skipped?" ("+skipped+" כפולות דולגו)":"")+".");
+}
+let waItems=[];
+function showWaPreview(items){
+  waItems=items; const p=$("#waPreview"); p.innerHTML=""; p.hidden=false;
+  if(!items.length){ p.append(el("p",{class:"hint",text:"לא זיהיתי כתובות. ודא שכל כתובת כוללת מספר בית, או הוסף ידנית."})); $("#waAddRow").hidden=true; return; }
+  p.append(el("p",{class:"hint",text:items.length+" כתובות זוהו – בדוק לפני הוספה:"}));
+  items.forEach(x=>p.append(el("div",{},x.addr+(x.city?", "+x.city:""),(x.name||x.phone)?el("small",{text:" · "+[x.name,x.phone].filter(Boolean).join(" · ")}):null)));
+  $("#waAddRow").hidden=false;
+}
+
+/* ---------- map data & shortest route (runs on the phone) ---------- */
+let GEOP=null;
+function gnorm(t){
+  return String(t||"").replace(/[\u0591-\u05C7]/g,"").replace(/["'׳״`.]/g,"").replace(/[-–־_/]/g," ")
+    .replace(/קריית/g,"קרית").replace(/\s+/g," ").trim();
+}
+const CITY_ALIAS={"פרדס חנה כרכור":"פרדס חנה-כרכור","זכרון":"זכרון יעקב","אור עקיבה":"אור עקיבא","יוקנעם":"יקנעם עילית","יקנעם":"יקנעם עילית","קרית טבעון":"קריית טבעון","טבעון":"קריית טבעון","באקה":"באקה אל-גרביה","ג'סר":"ג'סר א-זרקא","גבעת עדה":"גבעת עדה","בנימינה גבעת עדה":"בנימינה","פרדס-חנה":"פרדס חנה"};
+function loadGeo(){
+  if(!GEOP) GEOP=fetch(new URL("geo.json",location.href).href).then(r=>{ if(!r.ok) throw new Error("geo"); return r.json(); }).then(d=>{
+    const locs=d.loc.map(([n,lat,lon])=>({n:gnorm(n),name:n,lat,lon}));
+    const byName=new Map(locs.map(l=>[l.n,l]));
+    for(const [a,b] of Object.entries(CITY_ALIAS)){ const t=byName.get(gnorm(b)); if(t&&!byName.has(gnorm(a))) locs.push({n:gnorm(a),name:t.name,lat:t.lat,lon:t.lon}); }
+    locs.sort((a,b)=>b.n.length-a.n.length);
+    const st=new Map(); for(const [n,pts] of d.st){ const k=gnorm(n); st.set(k,(st.get(k)||[]).concat(pts)); }
+    return {locs,st};
+  }).catch(()=>{ GEOP=null; return null; });
+  return GEOP;
+}
+function km(a,b){ const R=6371,r=Math.PI/180,dLa=(b.lat-a.lat)*r,dLo=(b.lon-a.lon)*r; const h=Math.sin(dLa/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+function findCity(G,text){
+  const t=" "+gnorm(text)+" ";
+  for(const l of G.locs){ if(l.n.length>=2 && t.includes(" "+l.n+" ")) return l; }
+  for(const l of G.locs){ if(l.n.length>=4 && t.includes(l.n)) return l; }
+  return null;
+}
+function geocode(G,text,fallbackCity,near){
+  let city=findCity(G,text);
+  const usedCity=!!city;
+  if(!city&&fallbackCity) city=findCity(G,fallbackCity);
+  let rest=" "+gnorm(text)+" ";
+  if(usedCity) rest=rest.replace(" "+city.n+" "," ").replace(city.n," ");
+  rest=rest.replace(/\b(דירה|דיר|קומה|כניסה|ת ד|מיקוד)\b.*$/,"").replace(/,/g," ");
+  let street=rest.replace(/\d+[א-ת]?/g," ").replace(/^\s*(רחוב|רח|שד)\s+/," ").replace(/\s+/g," ").trim();
+  street=street.replace(/^(רחוב|רח)\s+/,"").replace(/^שד\s+/,"שדרות ");
+  const ref=city||near||null;
+  let pts=null;
+  if(street){
+    pts=G.st.get(street)||G.st.get("ה"+street)||(street.startsWith("ה")?G.st.get(street.slice(1)):null)||G.st.get("רחוב "+street)||G.st.get("שדרות "+street);
+    if(!pts&&street.length>=4){ for(const [k,v] of G.st){ if(k.endsWith(" "+street)||k===street){ pts=v; break; } } }
+  }
+  if(pts&&pts.length){
+    const cand=pts.map(([lat,lon])=>({lat,lon}));
+    if(ref){ cand.sort((a,b)=>km(a,ref)-km(b,ref)); if(!city||km(cand[0],ref)<7) return {lat:cand[0].lat,lon:cand[0].lon,q:"street"}; }
+    else if(cand.length===1) return {...cand[0],q:"street"};
+  }
+  if(city&&(usedCity||!hasCity(text))) return {lat:city.lat,lon:city.lon,q:"city"};
+  return null;
+}
+function routeOrder(start,pts){
+  const n=pts.length; if(n<2) return pts.map((_,i)=>i);
+  const D=(a,b)=>km(a,b);
+  const left=new Set(pts.map((_,i)=>i)); const ord=[]; let cur=start||pts[0];
+  if(!start){ ord.push(0); left.delete(0); cur=pts[0]; }
+  while(left.size){ let best=-1,bd=1e9; for(const i of left){ const d=D(cur,pts[i]); if(d<bd){bd=d;best=i;} } ord.push(best); left.delete(best); cur=pts[best]; }
+  const P=i=>i<0?start:pts[ord[i]];
+  let improved=true, guard=0;
+  while(improved&&guard++<200){
+    improved=false;
+    for(let i=(start?0:1);i<n-1;i++){
+      for(let k=i+1;k<n;k++){
+        const a=start?P(i-1):(i>0?P(i-1):null); if(!a) continue;
+        const b=P(i), c=P(k), d=k+1<n?P(k+1):null;
+        const before=D(a,b)+(d?D(c,d):0), after=D(a,c)+(d?D(b,d):0);
+        if(after+1e-9<before){ const seg=ord.slice(i,k+1).reverse(); ord.splice(i,k-i+1,...seg); improved=true; }
+      }
+    }
+  }
+  return ord;
+}
+async function orderGeo(){
+  const open=state.stops.filter(s=>!s.done), done=state.stops.filter(s=>s.done);
+  if(open.length<2){ setStatus("צריך לפחות שתי עצירות פתוחות כדי לסדר."); return; }
+  const btn=$("#orderGeo"); btn.disabled=true; setStatus("מחשב מסלול קצר...");
+  try{
+    const G=await loadGeo();
+    if(!G){ orderBasic(); setStatus("לא הצלחתי לטעון את המפה, לכן סודר לפי עיר ורחוב. נסה שוב בעוד רגע."); return; }
+    const startPt=state.start?geocode(G,state.start,state.defCity,null):(state.defCity?geocode(G,state.defCity,"",null):null);
+    const near=startPt||null;
+    const located=[], lost=[];
+    for(const s of open){ const g=geocode(G,full(s),state.defCity,near); s.geo=g?g.q:"none"; if(g) located.push({s,p:{lat:g.lat,lon:g.lon}}); else lost.push(s); }
+    const ord=routeOrder(startPt?{lat:startPt.lat,lon:startPt.lon}:null, located.map(x=>x.p));
+    const sorted=ord.map(i=>located[i].s);
+    let total=0, prev=startPt; for(const i of ord){ const p=located[i].p; if(prev) total+=km(prev,p); prev=p; }
+    state.stops=[...sorted,...lost,...done]; save(); render();
+    const approx=open.filter(s=>s.geo==="city").length;
+    let msg="המסלול סודר לפי מרחקים. אורך משוער: "+Math.round(total*1.3)+" ק\"מ.";
+    if(approx) msg+=" "+approx+" כתובות אותרו רק לפי העיר (מסומנות).";
+    if(lost.length) msg+=" "+lost.length+" כתובות לא נמצאו במפה והועברו לסוף – בדוק אותן.";
+    setStatus(msg);
+  }finally{ btn.disabled=false; }
+}
+
+/* ---------- ordering ---------- */
+function cityOf(st){ const f=full(st); const parts=f.split(","); if(parts.length>1) return parts[parts.length-1].trim(); const m=f.match(/\d+[א-ת]?\s+(.+)$/); return m?m[1].trim():""; }
+function streetOf(st){ return st.addr.replace(/\d+.*$/,"").trim(); }
+function numOf(st){ const m=st.addr.match(/\d+/); return m?Number(m[0]):0; }
+function orderBasic(){
+  const open=state.stops.filter(s=>!s.done), done=state.stops.filter(s=>s.done);
+  const startCity=(state.start.split(",").pop()||"").trim();
+  const cities=[]; open.forEach(s=>{const c=cityOf(s); if(!cities.includes(c)) cities.push(c);});
+  cities.sort((a,b)=>(a===startCity?-1:0)-(b===startCity?-1:0));
+  open.sort((a,b)=>cities.indexOf(cityOf(a))-cities.indexOf(cityOf(b)) || streetOf(a).localeCompare(streetOf(b),"he") || numOf(a)-numOf(b));
+  state.stops=[...open,...done]; save(); render();
+  setStatus("סודר לפי עיר, ואז לפי רחוב ומספר בית. זה לא מחשב מרחקים – אפשר להזיז עצירות עם החצים.");
+}
+let sample=null, aiCtl=null;
+async function orderAi(){
+  const open=state.stops.filter(s=>!s.done);
+  if(open.length<2){ setStatus("צריך לפחות שתי עצירות פתוחות כדי לסדר."); return; }
+  const btn=$("#orderAi"); btn.disabled=true; setStatus("מחשב סדר נסיעה...");
+  const list=open.map((s,i)=>(i+1)+". "+full(s)).join("\n");
+  const prompt="אתה מתכנן מסלול חלוקה לשליח בישראל. נקודת יציאה: "+(state.start||state.defCity||"לא צוין")+".\n"
+   +"סדר את העצירות כך שהנסיעה הכוללת תהיה הכי קצרה (מסלול רציף, בלי לחזור לנקודת היציאה). "
+   +"השתמש בידע שלך על מיקום הערים, השכונות והרחובות בישראל. קבץ עצירות באותה עיר ובאותה שכונה יחד, וסדר את הערים לפי הדרך.\n\n"
+   +"העצירות:\n"+list+"\n\n"
+   +'החזר JSON בלבד בצורה: {"order":[3,1,2],"note":"משפט קצר אחד על ההיגיון"} כאשר order מכיל את כל מספרי העצירות פעם אחת בדיוק.';
+  aiCtl=new AbortController();
+  try{
+    const res=await sample.json(prompt,{signal:aiCtl.signal,modelTier:"default"});
+    const ord=Array.isArray(res&&res.order)?res.order.map(Number):[];
+    const used=new Set(); const sorted=[];
+    for(const n of ord){ if(n>=1&&n<=open.length&&!used.has(n)){ used.add(n); sorted.push(open[n-1]); } }
+    open.forEach((s,i)=>{ if(!used.has(i+1)) sorted.push(s); });
+    state.stops=[...sorted,...state.stops.filter(s=>s.done)]; save(); render();
+    setStatus("המסלול סודר. "+(res&&res.note?String(res.note):"")+" זה סידור לפי ידע על המפה, לא ניווט בזמן אמת – תמיד אפשר להזיז עם החצים.");
+  }catch(e){
+    const msg={not_granted:"לא אושר שימוש ב-Claude בדף הזה. השתמש ב'סדר לפי עיר ורחוב'.",sampling_disabled:"סידור חכם לא זמין לחשבון הזה.",rate_limited:"יותר מדי בקשות. נסה שוב בעוד דקה.",invalid_json:"התשובה לא הגיעה בפורמט הנכון. נסה שוב.",cancelled:""}[e&&e.code];
+    setStatus(msg!==undefined?msg:"הסידור החכם נכשל. נסה שוב או השתמש בסידור לפי עיר ורחוב.");
+    if(e&&["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(e.code)) btn.hidden=true;
+  }finally{ btn.disabled=false; }
+}
+async function aiParse(){
+  const t=$("#waText").value.trim(); if(!t) return;
+  const b=$("#waAi"); b.disabled=true; setStatus("מזהה כתובות מתוך ההודעה...");
+  const prompt="מתוך ההודעות הבאות (וואטסאפ, בעברית) חלץ את כתובות המשלוח. לכל משלוח: addr (רחוב ומספר בית), city (עיר, אם כתובה), name, phone, note (קומה/דירה/הערה). אל תמציא פרטים שלא כתובים.\n"
+   +'החזר JSON בלבד: [{"addr":"","city":"","name":"","phone":"","note":""}]\n\nההודעות:\n'+t.slice(0,12000);
+  try{
+    const arr=await sample.json(prompt,{modelTier:"quick"});
+    const items=(Array.isArray(arr)?arr:[]).map(x=>({addr:String(x.addr||"").trim(),city:String(x.city||"").trim(),name:String(x.name||"").trim(),phone:String(x.phone||"").trim(),note:String(x.note||"").trim()})).filter(x=>x.addr);
+    showWaPreview(items); setStatus("");
+  }catch(e){
+    setStatus(e&&e.code==="not_granted"?"לא אושר שימוש ב-Claude. השתמש ב'זהה כתובות'.":"הזיהוי החכם נכשל. נסה 'זהה כתובות'.");
+    if(e&&["not_granted","sampling_disabled"].includes(e.code)) b.hidden=true;
+  }finally{ b.disabled=false; }
+}
+
+/* ---------- screenshots ---------- */
+let imgFiles=[], imgItems=[], imgOk=false;
+function onImages(files){
+  imgFiles=[...files].slice(0,10); const t=$("#imgThumbs"); t.innerHTML="";
+  imgFiles.forEach(f=>{ const u=URL.createObjectURL(f); t.append(el("img",{src:u,alt:"צילום מסך "+f.name})); });
+  t.hidden=!imgFiles.length; $("#imgParse").disabled=!imgFiles.length; $("#imgAi").disabled=!imgFiles.length||!imgOk;
+  $("#imgPreview").hidden=true; $("#imgAddRow").hidden=true;
+}
+async function imgParseAi(){
+  if(!imgFiles.length||!sample) return;
+  const b=$("#imgAi"); b.disabled=true; const p=$("#imgPreview"); p.hidden=false; p.textContent="קורא את התמונה...";
+  const prompt="בתמונות יש צילומי מסך (וואטסאפ, אפליקציית הזמנות, רשימה או טבלה) עם כתובות משלוח בישראל, בעיקר בעברית. "
+   +"חלץ כל משלוח: addr (רחוב ומספר בית בדיוק כפי שכתוב), city (עיר אם כתובה), name, phone, note (קומה/דירה/קוד/הערה). "
+   +"אל תמציא ואל תשלים פרטים שלא כתובים בתמונה. דלג על טקסט שאינו כתובת משלוח.\n"
+   +'החזר JSON בלבד: [{"addr":"","city":"","name":"","phone":"","note":""}]';
+  try{
+    const arr=await sample.json(prompt,{images:imgFiles,modelTier:"default"});
+    showImgItems((Array.isArray(arr)?arr:[]).map(x=>({addr:String(x.addr||"").trim(),city:String(x.city||"").trim(),name:String(x.name||"").trim(),phone:String(x.phone||"").trim(),note:String(x.note||"").trim()})).filter(x=>x.addr)," (Claude)");
+  }catch(e){
+    const c=e&&e.code;
+    p.textContent={not_granted:"לא אושר ל-Claude לקרוא תמונות בדף הזה.",images_unavailable:"קריאת תמונות לא זמינה כאן.",image_rejected:"התמונה לא נקראה. נסה צילום אחר (PNG או JPG).",rate_limited:"יותר מדי בקשות. נסה שוב בעוד דקה.",invalid_json:"התשובה לא הגיעה בפורמט הנכון. לחץ שוב."}[c]||"הקריאה נכשלה. נסה שוב.";
+    if(["not_granted","images_unavailable","sampling_disabled"].includes(c)){ imgOk=false; b.hidden=true; }
+  }finally{ b.disabled=!imgFiles.length||!imgOk; }
+}
+function showImgItems(items,src){
+  imgItems=items; const p=$("#imgPreview"); p.hidden=false; p.innerHTML="";
+  if(!items.length){ p.append(el("p",{class:"hint",text:"לא מצאתי כתובות בתמונה. נסה צילום חד יותר, חתוך רק את הרשימה, או הקלד ידנית."})); $("#imgAddRow").hidden=true; return; }
+  p.append(el("p",{class:"hint",text:items.length+" כתובות זוהו"+src+" – בדוק מול הצילום ותקן אחרי ההוספה אם צריך:"}));
+  items.forEach(x=>p.append(el("div",{},x.addr+(x.city?", "+x.city:""),(x.name||x.phone||x.note)?el("small",{text:" · "+[x.name,x.phone,x.note].filter(Boolean).join(" · ")}):null)));
+  $("#imgAddRow").hidden=false;
+}
+let ocrWorker=null;
+async function getOcr(onProg){
+  if(ocrWorker) return ocrWorker;
+  if(typeof Tesseract==="undefined") throw new Error("nolib");
+  ocrWorker=await Tesseract.createWorker("heb",1,{
+    workerPath:"https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js",
+    corePath:"https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1",
+    langPath:new URL("lang",location.href).href,
+    gzip:false, workerBlobURL:true,
+    logger:m=>{ if(m&&typeof m.progress==="number") onProg(m.status,m.progress); }
+  });
+  return ocrWorker;
+}
+async function imgParse(){
+  if(!imgFiles.length) return;
+  const b=$("#imgParse"); b.disabled=true; const p=$("#imgPreview"); p.hidden=false; $("#imgAddRow").hidden=true;
+  let cur=0;
+  const prog=(st,v)=>{ p.textContent=(st&&st.indexOf("recogniz")>=0?"קורא תמונה "+(cur+1)+" מתוך "+imgFiles.length+"… ":"מכין קורא טקסט… ")+Math.round(v*100)+"%"; };
+  try{
+    p.textContent="מכין קורא טקסט…";
+    const w=await getOcr(prog);
+    let text="";
+    for(cur=0;cur<imgFiles.length;cur++){ const r=await w.recognize(imgFiles[cur]); text+="\n"+(r&&r.data&&r.data.text||""); }
+    showImgItems(parseWhatsApp(text)," מהתמונה");
+  }catch(e){
+    ocrWorker=null;
+    p.textContent="הקריאה בטלפון נכשלה."+(imgOk?" נסה 'קריאה מדויקת עם Claude'.":" אפשר להעתיק את הטקסט מוואטסאפ ולהדביק בלשונית 'מוואטסאפ'.");
+  }finally{ b.disabled=!imgFiles.length; }
+}
+
+/* ---------- Google Maps full route ---------- */
+function gmapsRoutes(){
+  const open=state.stops.filter(s=>!s.done).map(full);
+  const box=$("#gmapsLinks"); box.innerHTML="";
+  if(!open.length){ setStatus("אין עצירות פתוחות."); box.hidden=true; return; }
+  const chunks=[]; let origin=state.start||"";
+  for(let i=0;i<open.length;i+=10){
+    const part=open.slice(i,i+10); const dest=part[part.length-1]; const wps=part.slice(0,-1);
+    let u="https://www.google.com/maps/dir/?api=1&travelmode=driving&destination="+encodeURIComponent(dest);
+    if(origin) u+="&origin="+encodeURIComponent(origin);
+    if(wps.length) u+="&waypoints="+wps.map(encodeURIComponent).join("%7C");
+    chunks.push({u,from:i+1,to:i+part.length}); origin=dest;
+  }
+  chunks.forEach(c=>box.append(el("a",{class:"btn primary",href:c.u,target:"_blank",rel:"noopener",text:chunks.length>1?("עצירות "+c.from+"–"+c.to):"פתח בגוגל מפות"})));
+  box.hidden=false;
+  setStatus(chunks.length>1?"גוגל מפות מקבל עד 10 עצירות בכל פעם, לכן המסלול מחולק לחלקים.":"גוגל מפות ייסע לפי הסדר שברשימה.");
+}
+function copyForWhatsApp(){
+  const open=state.stops.filter(s=>!s.done);
+  if(!open.length){ setStatus("אין עצירות פתוחות להעתקה."); return; }
+  const d=new Date().toLocaleDateString("he-IL");
+  const lines=["*מסלול "+d+"*"+(state.start?" – יציאה מ"+state.start:""),""];
+  open.forEach((s,i)=>{
+    lines.push((i+1)+". "+full(s)+(s.name?" – "+s.name:"")+(s.phone?" – "+s.phone:"")+(s.note?" ("+s.note+")":""));
+    lines.push("   "+waze(full(s)));
+  });
+  copyText(lines.join("\n"), $("#copyOut"));
+}
+
+/* ---------- render ---------- */
+function render(){
+  $("#startAddr").value=state.start||""; $("#defCity").value=state.defCity||"";
+  $("#exampleBanner").hidden=!state.example;
+  const total=state.stops.length, done=state.stops.filter(s=>s.done).length;
+  $("#progTxt").textContent=done+"/"+total+" נמסרו";
+  $("#progBar").style.width=(total?Math.round(done/total*100):0)+"%";
+  const ol=$("#stops"); ol.innerHTML="";
+  if(!total){
+    ol.append(el("li",{class:"empty"},"אין עדיין עצירות. מוסיפים כתובות למעלה: מהודעת וואטסאפ, מקובץ אקסל או ידנית."));
+    return;
+  }
+  const nextId=(state.stops.find(s=>!s.done)||{}).id;
+  state.stops.forEach((s,i)=>{
+    const isNext=s.id===nextId;
+    const li=el("li",{class:"stop"+(s.done?" done":"")+(isNext?" next":"")});
+    li.append(el("div",{class:"num","aria-hidden":"true",text:String(i+1)}));
+    const a=el("div",{class:"addr"},full(s)); if(isNext) a.append(el("span",{class:"tag",text:"הבא"}));
+    li.append(a);
+    const meta=el("div",{class:"meta"});
+    if(!s.done&&s.geo==="city") meta.append(el("span",{class:"geo",text:"📍 מיקום לפי עיר בלבד"}));
+    if(!s.done&&s.geo==="none") meta.append(el("span",{class:"geo bad",text:"⚠ לא נמצא במפה"}));
+    if(s.name) meta.append(el("span",{},el("b",{text:s.name})));
+    if(s.phone) meta.append(el("span",{},"☎ ",el("a",{href:"tel:"+s.phone.replace(/[^\d+]/g,""),text:s.phone})));
+    if(s.note) meta.append(el("span",{text:s.note}));
+    if(s.done&&s.doneAt) meta.append(el("span",{text:"נמסר "+new Date(s.doneAt).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"})}));
+    li.append(meta);
+    const act=el("div",{class:"sactions"},
+      el("a",{class:"btn primary",href:waze(full(s)),target:"_blank",rel:"noopener",text:"Waze"}),
+      el("a",{class:"btn ghost",href:gmaps(full(s)),target:"_blank",rel:"noopener",text:"גוגל מפות"}),
+      el("button",{class:"btn "+(s.done?"ghost":"amber"),type:"button",onclick:()=>{s.done=!s.done;s.doneAt=s.done?Date.now():null;save();render();},text:s.done?"בטל מסירה":"נמסר ✓"}),
+      el("button",{class:"btn ghost sm",type:"button","aria-label":"הזז למעלה",onclick:()=>move(i,-1),disabled:i===0?"":null,text:"▲"}),
+      el("button",{class:"btn ghost sm",type:"button","aria-label":"הזז למטה",onclick:()=>move(i,1),disabled:i===total-1?"":null,text:"▼"}),
+      el("button",{class:"btn ghost sm",type:"button",onclick:()=>editStop(li,s),text:"עריכה"})
+    );
+    li.append(act);
+    ol.append(li);
+  });
+}
+function move(i,d){ const j=i+d; if(j<0||j>=state.stops.length) return; const a=state.stops; [a[i],a[j]]=[a[j],a[i]]; save(); render(); }
+function editStop(li,s){
+  if(li.querySelector(".edit")) return;
+  const f=(lbl,val,key)=>{const id="e_"+key+"_"+s.id; const inp=el("input",{type:"text",id,value:val||""}); return [el("label",{class:"f",for:id},lbl,inp),inp];};
+  const [l1,i1]=f("כתובת",s.addr,"addr"),[l2,i2]=f("עיר",s.city,"city"),[l3,i3]=f("שם",s.name,"name"),[l4,i4]=f("טלפון",s.phone,"phone"),[l5,i5]=f("הערה",s.note,"note");
+  const box=el("div",{class:"edit"},el("div",{class:"row"},l1,l2),el("div",{class:"row"},l3,l4,l5),
+    el("div",{class:"actions"},
+      el("button",{class:"btn primary",type:"button",text:"שמור",onclick:()=>{ if(!i1.value.trim()) return; s.geo=undefined; Object.assign(s,{addr:i1.value.trim(),city:i2.value.trim(),name:i3.value.trim(),phone:i4.value.trim(),note:i5.value.trim()}); save(); render(); }}),
+      el("button",{class:"btn ghost",type:"button",text:"ביטול",onclick:()=>render()}),
+      el("button",{class:"btn danger",type:"button",text:"מחק עצירה",onclick:()=>{ state.stops=state.stops.filter(x=>x.id!==s.id); save(); render(); setStatus("העצירה נמחקה."); }})
+    ));
+  li.append(box); i1.focus();
+}
+
+/* ---------- wiring ---------- */
+$("#today").textContent=new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"numeric"});
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>{x.setAttribute("aria-selected",String(x===t)); $("#"+x.getAttribute("aria-controls")).hidden=x!==t;});
+}));
+$("#startAddr").addEventListener("change",e=>{state.start=e.target.value.trim();save();});
+$("#defCity").addEventListener("change",e=>{state.defCity=e.target.value.trim();save();render();});
+$("#waParse").addEventListener("click",()=>showWaPreview(parseWhatsApp($("#waText").value)));
+$("#waAdd").addEventListener("click",()=>{ addStops(waItems); $("#waText").value=""; $("#waPreview").hidden=true; $("#waAddRow").hidden=true; });
+$("#waAi").addEventListener("click",aiParse);
+$("#imgFile").addEventListener("change",e=>onImages(e.target.files));
+$("#imgParse").addEventListener("click",imgParse);
+$("#imgAi").addEventListener("click",imgParseAi);
+$("#imgAdd").addEventListener("click",()=>{ addStops(imgItems); imgItems=[]; $("#imgFile").value=""; onImages([]); });
+$("#xlFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) readExcel(f); });
+["mAddr","mNum","mCity","mName","mPhone","mNote"].forEach(id=>$("#"+id).addEventListener("change",renderXlPreview));
+$("#xlAdd").addEventListener("click",()=>{ addStops(xlItems()); $("#xlMap").hidden=true; $("#xlFile").value=""; });
+$("#manForm").addEventListener("submit",e=>{ e.preventDefault(); const v=id=>$("#"+id).value.trim(); if(!v("manAddr")) return;
+  addStops([{addr:v("manAddr"),city:v("manCity"),name:v("manName"),phone:v("manPhone"),note:v("manNote")}]);
+  ["manAddr","manCity","manName","manPhone","manNote"].forEach(id=>$("#"+id).value=""); $("#manAddr").focus(); });
+$("#orderBasic").addEventListener("click",orderBasic);
+$("#orderGeo").addEventListener("click",orderGeo);
+$("#openGmaps").addEventListener("click",gmapsRoutes);
+$("#copyWa").addEventListener("click",copyForWhatsApp);
+$("#clearExample").addEventListener("click",()=>{ state.stops=[]; state.example=false; save(); render(); setStatus("המסלול ריק. הוסף כתובות למעלה."); });
+let armed=null;
+$("#clearAll").addEventListener("click",e=>{
+  const b=e.currentTarget;
+  if(!armed){ b.textContent="בטוח? לחץ שוב"; armed=setTimeout(()=>{armed=null;b.textContent="נקה הכל";},4000); return; }
+  clearTimeout(armed); armed=null; b.textContent="נקה הכל";
+  state.stops=[]; state.example=false; save(); render(); $("#gmapsLinks").hidden=true; setStatus("המסלול נוקה.");
+});
+render();
+
+
+
+(async()=>{
+  try{
+    if(!window.claude||!claude.use) return;
+    sample=await claude.use("sample");
+    if(sample){ $("#waAi").hidden=false; }
+    const lim=sample?await sample.limits().catch(()=>null):null;
+    imgOk=!!(lim&&lim.images);
+    $("#imgAi").hidden=!imgOk; $("#imgAi").disabled=!imgFiles.length||!imgOk;
+  }catch(e){}
+})();
+})();
+
+if("serviceWorker" in navigator){ addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{})); }
+</script>
+
+</body>
+</html>
