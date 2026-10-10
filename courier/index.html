@@ -386,13 +386,21 @@ function loadGeo(){
     const locs=d.loc.map(([n,lat,lon])=>({n:gnorm(n),name:n,lat,lon}));
     const byName=new Map(locs.map(l=>[l.n,l]));
     for(const [a,b] of Object.entries(CITY_ALIAS)){ const t=byName.get(gnorm(b)); if(t&&!byName.has(gnorm(a))) locs.push({n:gnorm(a),name:t.name,lat:t.lat,lon:t.lon}); }
+    const uniq=d.loc.map(([n,lat,lon])=>({name:n,lat,lon}));
     locs.sort((a,b)=>b.n.length-a.n.length);
     const st=new Map(); for(const [n,pts] of d.st){ const k=gnorm(n); st.set(k,(st.get(k)||[]).concat(pts)); }
-    return {locs,st};
+    return {locs,st,uniq};
   }).catch(()=>{ GEOP=null; return null; });
   return GEOP;
 }
 function km(a,b){ const R=6371,r=Math.PI/180,dLa=(b.lat-a.lat)*r,dLo=(b.lon-a.lon)*r; const h=Math.sin(dLa/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+// rough town radius (km) so big towns "own" their streets against small neighbours; default 0.7
+const TOWN_R={"חיפה":6,"נתניה":4.5,"חדרה":3.8,"הרצליה":3.5,"כפר סבא":3,"רעננה":3,"הוד השרון":2.5,"רמת השרון":2.5,"פרדס חנה-כרכור":2.6,"פרדס חנה":1.8,"כרכור":1.5,"זכרון יעקב":2,"אור עקיבא":1.6,"בנימינה":1.4,"קיסריה":2.5,"אום אל-פחם":2.5,"באקה אל-גרביה":2,"טייבה":2.2,"טירה":1.6,"קלנסווה":1.4,"כפר יונה":1.6,"אבן יהודה":1.5,"קדימה":1.3,"צורן":1.2,"תל מונד":1.3,"חריש":2,"יקנעם עילית":2,"טירת כרמל":1.8,"נשר":1.8,"קריית טבעון":1.8,"קרית אתא":2.2,"קריית ביאליק":1.6,"קריית מוצקין":1.5,"קריית ים":1.5,"מגדל העמק":1.8,"עפולה":2.5,"כפר קרע":1.4,"ערערה":1.4,"ג'סר א-זרקא":0.9,"פוריידיס":0.9,"עתלית":1.1,"גבעת אולגה":1.2,"בית אליעזר":0.9};
+const TOWN_GROUP=[["פרדס חנה-כרכור","פרדס חנה","כרכור"],["חדרה","גבעת אולגה","בית אליעזר","אולגה"],["בנימינה","גבעת עדה"],["קדימה","צורן"]];
+function groupOf(name){ const g=TOWN_GROUP.find(x=>x.includes(name)); return g||[name]; }
+function ownerOf(G,p){ // weighted nearest locality
+  let best=null,bv=1e9; for(const l of G.uniq){ const v=km(p,l)-(TOWN_R[l.name]||0.7); if(v<bv){bv=v;best=l;} } return best;
+}
 function findCity(G,text){
   const t=" "+gnorm(text)+" ";
   for(const l of G.locs){ if(l.n.length>=2 && t.includes(" "+l.n+" ")) return l; }
@@ -416,7 +424,8 @@ function geocode(G,text,fallbackCity,near){
   }
   if(pts&&pts.length){
     const cand=pts.map(([lat,lon])=>({lat,lon}));
-    if(ref){ cand.sort((a,b)=>km(a,ref)-km(b,ref)); if(!city||km(cand[0],ref)<7){ const inC=cand.filter(c=>km(c,cand[0])<3); const m={lat:inC.reduce((s,c)=>s+c.lat,0)/inC.length,lon:inC.reduce((s,c)=>s+c.lon,0)/inC.length}; inC.sort((a,b)=>km(a,m)-km(b,m)); return {lat:inC[0].lat,lon:inC[0].lon,q:"street"}; } }
+    if(city){ const grp=groupOf(city.name); const own=cand.filter(c=>{ const o=ownerOf(G,c); return o&&grp.includes(o.name); }); if(own.length){ cand.length=0; cand.push(...own); } else { cand.length=0; } }
+    if(cand.length&&ref){ cand.sort((a,b)=>km(a,ref)-km(b,ref)); if(!city||km(cand[0],ref)<7){ const inC=cand.filter(c=>km(c,cand[0])<3); const m={lat:inC.reduce((s,c)=>s+c.lat,0)/inC.length,lon:inC.reduce((s,c)=>s+c.lon,0)/inC.length}; inC.sort((a,b)=>km(a,m)-km(b,m)); return {lat:inC[0].lat,lon:inC[0].lon,q:"street"}; } }
     else if(cand.length===1) return {...cand[0],q:"street"};
   }
   if(city&&(usedCity||!hasCity(text))) return {lat:city.lat,lon:city.lon,q:"city"};
