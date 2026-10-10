@@ -433,7 +433,7 @@ function geocode(G,text,fallbackCity,near){
 }
 /* ---------- precise (house-number) geocoding via OpenStreetMap Nominatim ---------- */
 // Only "street number, city" is sent – never names, phones or notes. Results are cached on the phone.
-const GC_KEY="courier-geocache-v1"; let GC=null, gcLast=0, gcOffline=false;
+const GC_KEY="courier-geocache-v2"; let GC=null, gcLast=0, gcOffline=false;
 function gcLoad(){ if(GC) return GC; try{ GC=JSON.parse(localStorage.getItem(GC_KEY)||"{}"); }catch(e){ GC={}; } return GC; }
 function gcSave(){ try{ const k=Object.keys(GC); if(k.length>800) k.slice(0,k.length-800).forEach(x=>delete GC[x]); localStorage.setItem(GC_KEY,JSON.stringify(GC)); }catch(e){} }
 function splitAddr(text,defCity){
@@ -468,6 +468,9 @@ async function preciseGeocode(G,text,defCity){
   let res=null;
   try{
     const tries=[];
+    const OSM_CITY={"בנימינה":"בנימינה-גבעת עדה","גבעת עדה":"בנימינה-גבעת עדה","פרדס חנה":"פרדס חנה-כרכור","כרכור":"פרדס חנה-כרכור","קדימה":"קדימה-צורן","צורן":"קדימה-צורן","תל אביב":"תל אביב-יפו","יפו":"תל אביב-יפו","זכרון":"זכרון יעקב","יקנעם":"יקנעם עילית","טבעון":"קריית טבעון","באקה":"באקה אל-גרביה"};
+    const oc=OSM_CITY[gnorm(city)]||OSM_CITY[city.trim()];
+    if(oc) tries.push("street="+encodeURIComponent(street)+"&city="+encodeURIComponent(oc));
     if(city) tries.push("street="+encodeURIComponent(street)+"&city="+encodeURIComponent(city));
     tries.push("q="+encodeURIComponent(street+(city?", "+city:"")));
     for(const q of tries){
