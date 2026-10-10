@@ -1,11 +1,11 @@
-const V="courier-v3";
+const V="courier-v4";
 const LOCAL=["./","index.html","manifest.webmanifest","geo.json","icon-192.png","icon-512.png","apple-touch-icon.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(LOCAL)).then(()=>self.skipWaiting()));});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
 self.addEventListener("fetch",e=>{
   const r=e.request; if(r.method!=="GET") return;
   const u=new URL(r.url);
-  const page=r.mode==="navigate"||u.pathname.endsWith("/index.html");
+  const page=r.mode==="navigate"||u.pathname.endsWith("/index.html")||u.pathname.endsWith("/");
   if(page){ // network first, so updates arrive; cache when offline
     e.respondWith(fetch(r.url,{cache:"no-cache"}).then(res=>{const c=res.clone();caches.open(V).then(x=>x.put(r,c));return res;}).catch(()=>caches.match(r).then(m=>m||caches.match("index.html"))));
     return;
