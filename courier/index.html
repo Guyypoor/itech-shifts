@@ -416,54 +416,111 @@ function geocode(G,text,fallbackCity,near){
   }
   if(pts&&pts.length){
     const cand=pts.map(([lat,lon])=>({lat,lon}));
-    if(ref){ cand.sort((a,b)=>km(a,ref)-km(b,ref)); if(!city||km(cand[0],ref)<7) return {lat:cand[0].lat,lon:cand[0].lon,q:"street"}; }
+    if(ref){ cand.sort((a,b)=>km(a,ref)-km(b,ref)); if(!city||km(cand[0],ref)<7){ const inC=cand.filter(c=>km(c,cand[0])<3); const m={lat:inC.reduce((s,c)=>s+c.lat,0)/inC.length,lon:inC.reduce((s,c)=>s+c.lon,0)/inC.length}; inC.sort((a,b)=>km(a,m)-km(b,m)); return {lat:inC[0].lat,lon:inC[0].lon,q:"street"}; } }
     else if(cand.length===1) return {...cand[0],q:"street"};
   }
   if(city&&(usedCity||!hasCity(text))) return {lat:city.lat,lon:city.lon,q:"city"};
   return null;
 }
-function routeOrder(start,pts){
-  const n=pts.length; if(n<2) return pts.map((_,i)=>i);
-  const D=(a,b)=>km(a,b);
-  const left=new Set(pts.map((_,i)=>i)); const ord=[]; let cur=start||pts[0];
-  if(!start){ ord.push(0); left.delete(0); cur=pts[0]; }
-  while(left.size){ let best=-1,bd=1e9; for(const i of left){ const d=D(cur,pts[i]); if(d<bd){bd=d;best=i;} } ord.push(best); left.delete(best); cur=pts[best]; }
-  const P=i=>i<0?start:pts[ord[i]];
-  let improved=true, guard=0;
-  while(improved&&guard++<200){
-    improved=false;
-    for(let i=(start?0:1);i<n-1;i++){
-      for(let k=i+1;k<n;k++){
-        const a=start?P(i-1):(i>0?P(i-1):null); if(!a) continue;
-        const b=P(i), c=P(k), d=k+1<n?P(k+1):null;
-        const before=D(a,b)+(d?D(c,d):0), after=D(a,c)+(d?D(b,d):0);
-        if(after+1e-9<before){ const seg=ord.slice(i,k+1).reverse(); ord.splice(i,k-i+1,...seg); improved=true; }
-      }
-    }
+/* ---------- shortest route: real road matrix + exact / heuristic solver ---------- */
+const ROUTERS=["https://router.project-osrm.org/table/v1/driving/","https://routing.openstreetmap.de/routed-car/table/v1/driving/"];
+async function roadMatrix(nodes){
+  if(nodes.length>100) return null;
+  const coords=nodes.map(p=>p.lon.toFixed(5)+","+p.lat.toFixed(5)).join(";");
+  for(const base of ROUTERS){
+    try{
+      const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),12000);
+      const r=await fetch(base+coords+"?annotations=duration,distance",{signal:ctl.signal}); clearTimeout(t);
+      if(!r.ok) continue; const j=await r.json();
+      if(j.code!=="Ok"||!j.durations) continue;
+      const n=nodes.length, bad=j.durations.some(row=>row.some(v=>v==null));
+      if(bad) continue;
+      return {T:j.durations, Dm:j.distances||null, road:true};
+    }catch(e){}
   }
-  return ord;
+  return null;
+}
+function airMatrix(nodes){
+  const n=nodes.length, T=[], Dm=[];
+  for(let i=0;i<n;i++){ T.push([]); Dm.push([]); for(let j=0;j<n;j++){ const d=km(nodes[i],nodes[j])*1300; Dm[i].push(d); T[i].push(d/11); } }
+  return {T,Dm,road:false};
+}
+// node 0 = start (or null-start: free first stop). Returns order of node indices 1..n-1, open path (no return).
+function pathCost(M,ord,hasStart){ let c=0, prev=hasStart?0:-1; for(const i of ord){ if(prev>=0) c+=M[prev][i]; prev=i; } return c; }
+function solveExact(M,n,hasStart){
+  // Held-Karp over stops 1..n-1
+  const k=n-1, FULL=1<<k, INF=1e15;
+  const dp=new Float64Array(FULL*k).fill(INF), par=new Int8Array(FULL*k).fill(-1);
+  for(let j=0;j<k;j++) dp[(1<<j)*k+j]=hasStart?M[0][j+1]:0;
+  for(let S=1;S<FULL;S++){ for(let j=0;j<k;j++){ const v=dp[S*k+j]; if(!(S&(1<<j))||v>=INF) continue;
+    for(let x=0;x<k;x++){ if(S&(1<<x)) continue; const S2=S|(1<<x), nv=v+M[j+1][x+1]; if(nv<dp[S2*k+x]){ dp[S2*k+x]=nv; par[S2*k+x]=j; } } } }
+  let best=-1,bv=INF; for(let j=0;j<k;j++){ if(dp[(FULL-1)*k+j]<bv){bv=dp[(FULL-1)*k+j];best=j;} }
+  const ord=[]; let S=FULL-1, j=best; while(j>=0){ ord.push(j+1); const pj=par[S*k+j]; S&=~(1<<j); j=pj; }
+  return ord.reverse();
+}
+function improve(M,ord,hasStart){
+  let best=ord.slice(), bc=pathCost(M,best,hasStart), better=true, guard=0;
+  while(better&&guard++<60){
+    better=false; const n=best.length;
+    for(let i=0;i<n-1&&!better;i++) for(let k=i+1;k<n;k++){ // 2-opt (full recompute: matrix may be one-way)
+      const c=best.slice(0,i).concat(best.slice(i,k+1).reverse(),best.slice(k+1)); const cc=pathCost(M,c,hasStart);
+      if(cc+1e-6<bc){ best=c; bc=cc; better=true; break; } }
+    for(let L=1;L<=3&&!better;L++) for(let i=0;i+L<=n&&!better;i++){ // or-opt: move a block of 1-3 stops
+      const seg=best.slice(i,i+L), rest=best.slice(0,i).concat(best.slice(i+L));
+      for(let p=0;p<=rest.length;p++){ if(p===i) continue; const c=rest.slice(0,p).concat(seg,rest.slice(p)); const cc=pathCost(M,c,hasStart);
+        if(cc+1e-6<bc){ best=c; bc=cc; better=true; break; } } }
+  }
+  return best;
+}
+function solveHeuristic(M,n,hasStart){
+  const stops=[...Array(n-1)].map((_,i)=>i+1); let best=null, bc=1e18;
+  const firsts=hasStart?[0]:stops.slice(0,Math.min(stops.length,8));
+  for(const f of firsts){
+    const left=new Set(stops), ord=[]; let cur=f;
+    if(!hasStart){ ord.push(f); left.delete(f); }
+    while(left.size){ let b=-1,bd=1e18; for(const i of left){ if(M[cur][i]<bd){bd=M[cur][i];b=i;} } ord.push(b); left.delete(b); cur=b; }
+    const o=improve(M,ord,hasStart), c=pathCost(M,o,hasStart); if(c<bc){bc=c;best=o;}
+  }
+  return best;
+}
+async function routeOrder(start,pts){
+  const n=pts.length; if(n<2) return {ord:pts.map((_,i)=>i),mx:null};
+  const nodes=[start||pts[0],...pts], hasStart=!!start;
+  const mx=(await roadMatrix(nodes))||airMatrix(nodes);
+  const N=nodes.length;
+  let ord=(N-1<=15)?solveExact(mx.T,N,hasStart):solveHeuristic(mx.T,N,hasStart);
+  ord=improve(mx.T,ord,hasStart);
+  const sec=pathCost(mx.T,ord,hasStart), meters=pathCost(mx.Dm||mx.T,ord,hasStart);
+  return {ord:ord.map(i=>i-1), mx, sec, meters, exact:N-1<=15};
 }
 async function orderGeo(){
   const open=state.stops.filter(s=>!s.done), done=state.stops.filter(s=>s.done);
   if(open.length<2){ setStatus("צריך לפחות שתי עצירות פתוחות כדי לסדר."); return; }
-  const btn=$("#orderGeo"); btn.disabled=true; setStatus("מחשב מסלול קצר...");
+  const btn=$("#orderGeo"); btn.disabled=true; setStatus("מחשב את המסלול הקצר ביותר לפי כבישים...");
   try{
     const G=await loadGeo();
     if(!G){ orderBasic(); setStatus("לא הצלחתי לטעון את המפה, לכן סודר לפי עיר ורחוב. נסה שוב בעוד רגע."); return; }
     const startPt=state.start?geocode(G,state.start,state.defCity,null):(state.defCity?geocode(G,state.defCity,"",null):null);
-    const near=startPt||null;
     const located=[], lost=[];
-    for(const s of open){ const g=geocode(G,full(s),state.defCity,near); s.geo=g?g.q:"none"; if(g) located.push({s,p:{lat:g.lat,lon:g.lon}}); else lost.push(s); }
-    const ord=routeOrder(startPt?{lat:startPt.lat,lon:startPt.lon}:null, located.map(x=>x.p));
-    const sorted=ord.map(i=>located[i].s);
-    let total=0, prev=startPt; for(const i of ord){ const p=located[i].p; if(prev) total+=km(prev,p); prev=p; }
+    for(const s of open){ const g=geocode(G,full(s),state.defCity,startPt); s.geo=g?g.q:"none"; if(g) located.push({s,p:{lat:g.lat,lon:g.lon}}); else lost.push(s); }
+    // stops on the same street share a point: merge them so they stay together, ordered by house number
+    const groups=new Map();
+    for(const x of located){ const k=x.p.lat.toFixed(5)+","+x.p.lon.toFixed(5); if(!groups.has(k)) groups.set(k,{p:x.p,list:[]}); groups.get(k).list.push(x.s); }
+    const G2=[...groups.values()]; G2.forEach(g=>g.list.sort((a,b)=>numOf(a)-numOf(b)));
+    const r=await routeOrder(startPt?{lat:startPt.lat,lon:startPt.lon}:null, G2.map(g=>g.p));
+    const sorted=[]; r.ord.forEach(i=>sorted.push(...G2[i].list));
     state.stops=[...sorted,...lost,...done]; save(); render();
     const approx=open.filter(s=>s.geo==="city").length;
-    let msg="המסלול סודר לפי מרחקים. אורך משוער: "+Math.round(total*1.3)+" ק\"מ.";
-    if(approx) msg+=" "+approx+" כתובות אותרו רק לפי העיר (מסומנות).";
+    let msg;
+    if(r.mx&&r.mx.road) msg="המסלול הקצר ביותר לפי כבישים"+(r.exact?" (נבדקו כל האפשרויות)":"")+": כ־"+Math.round(r.meters/1000)+" ק\"מ, כ־"+Math.round(r.sec/60)+" דקות נסיעה.";
+    else if(r.mx) msg="אין חיבור לשרת הכבישים, לכן סודר לפי קו אווירי: כ־"+Math.round(r.meters/1000)+" ק\"מ משוער.";
+    else msg="המסלול סודר.";
+    if(!startPt) msg+=" כדאי למלא נקודת יציאה – אז המסלול מתחיל ממנה.";
+    if(approx) msg+=" "+approx+" כתובות אותרו רק לפי העיר (מסומנות) – הסדר שלהן פחות מדויק.";
     if(lost.length) msg+=" "+lost.length+" כתובות לא נמצאו במפה והועברו לסוף – בדוק אותן.";
     setStatus(msg);
-  }finally{ btn.disabled=false; }
+  }catch(e){ setStatus("החישוב נכשל. נסה שוב."); }
+  finally{ btn.disabled=false; }
 }
 
 /* ---------- ordering ---------- */
