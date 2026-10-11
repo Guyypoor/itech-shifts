@@ -102,7 +102,7 @@ function msg(t,cls){ const m=$("msg"); m.textContent=t||""; m.className="msg"+(c
 
 async function loadState(){
   if(!state.name) return render();
-  try{ const r=await api({action:"state",name:state.name}); if(r.ok){ state.in=r.in; state.since=r.since; state.mode=r.mode||"store"; } else msg(r.error,"err"); }
+  try{ const r=await api({action:"state",name:state.name,key:ls.get("att-key")||""}); if(r.ok){ state.in=r.in; state.since=r.since; state.mode=r.mode||"store"; if(r.key){ ls.set("att-key",r.key); $("who").disabled=true; } } else if(r.code==="locked"){ msg(r.error,"err"); state={name:"",in:false,since:null}; ls.set("att-name",""); ls.set("att-key",""); $("who").value=""; $("who").disabled=false; } else msg(r.error,"err"); }
   catch(e){ msg("אין חיבור לשרת. נסה/י שוב.","err"); }
   render();
 }
@@ -126,7 +126,7 @@ async function punch(){
     catch(e){ if(state.mode==="remote"){ pos={coords:{latitude:undefined,longitude:undefined,accuracy:undefined}}; } else msg(e&&e.code===1?"לא אישרת גישה למיקום. כדי להחתים צריך לאשר מיקום לאתר הזה בהגדרות הטלפון.":"לא הצלחתי לקבל מיקום. בדוק/י שהמיקום בטלפון דלוק ונסה/י שוב.","err"); if(!pos) return; }
     msg("שולח…");
     const action=state.in?"out":"in";
-    const r=await api({action,name:state.name,lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy,device});
+    const r=await api({action,name:state.name,key:ls.get("att-key")||"",lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy,device});
     if(r.ok){ state.in=r.in; state.since=r.since; msg(r.msg,"ok"); try{ navigator.vibrate&&navigator.vibrate(60); }catch(e){} }
     else { if(r.state){ state.in=r.state.in; state.since=r.state.since; state.mode=r.state.mode||state.mode; } msg(r.error,"err"); }
   }catch(e){ msg("אין חיבור לשרת. נסה/י שוב.","err"); }
@@ -136,12 +136,12 @@ function open(){ $("sheetBg").style.display="block"; requestAnimationFrame(()=>$
 function close(){ $("sheet").classList.remove("open"); setTimeout(()=>{$("sheetBg").style.display="none";},250); }
 
 $("clockPill").onclick=open; $("closeBtn").onclick=close; $("sheetBg").onclick=close; $("punch").onclick=punch;
-$("who").onchange=e=>{ state={name:e.target.value,in:false,since:null}; ls.set("att-name",state.name); msg(""); loadState(); };
+$("who").onchange=e=>{ if(ls.get("att-key")){ e.target.value=state.name; msg("הטלפון הזה כבר משויך ל"+state.name+". להחלפה פנה/י לגיא.","err"); return; } state={name:e.target.value,in:false,since:null}; ls.set("att-name",state.name); msg(""); loadState(); };
 addEventListener("keydown",e=>{ if(e.key==="Escape") close(); });
 addEventListener("visibilitychange",()=>{ if(!document.hidden) loadState(); });
 
 (async()=>{
-  try{ const r=await api({action:"names"}); if(r.ok){ const sel=$("who"); r.names.forEach(n=>{ const o=document.createElement("option"); o.value=n; o.textContent=n; sel.append(o); }); if(state.name&&r.names.includes(state.name)) sel.value=state.name; else { state.name=""; } } }catch(e){}
+  try{ const r=await api({action:"names"}); if(r.ok){ const sel=$("who"); r.names.forEach(n=>{ const o=document.createElement("option"); o.value=n; o.textContent=n; sel.append(o); }); if(state.name&&r.names.includes(state.name)) { sel.value=state.name; if(ls.get("att-key")) sel.disabled=true; } else { state.name=""; } } }catch(e){}
   await loadState(); tick();
 })();
 })();
