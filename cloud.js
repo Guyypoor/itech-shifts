@@ -1,7 +1,7 @@
 /* משמרות אייטק – חיבור לשרת (Supabase). זה המפתח הציבורי בלבד; ההרשאות נאכפות בשרת (RLS). */
 window.CLOUD_CFG = {
-  url: "",      // https://xxxx.supabase.co
-  anonKey: ""   // public anon key
+  url: "https://ifvtcmnhaivdagztrrrl.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmdnRjbW5oYWl2ZGFnenRycnJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3MTk5MjcsImV4cCI6MjEwNzI5NTkyN30.EhL0HsVu8PgqSdUPI-7eA9uf55pjyZ_RiWvI58G3jcQ"
 };
 window.Cloud = (function () {
   const cfg = window.CLOUD_CFG;
