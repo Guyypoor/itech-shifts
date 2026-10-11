@@ -18,9 +18,11 @@
 <style>
 :root{--frost:#EEF1F7;--paper:#FFFFFF;--ink:#15163A;--mut:#6B6F8E;--hair:#DCE1EC;--volt:#3355FF;--go:#14B87A;--coral:#F0505A;--sun:#FFB020}
 html,body{margin:0;height:100%;background:var(--frost);font-family:Rubik,system-ui,-apple-system,Arial,sans-serif}
-iframe{position:fixed;inset:0;width:100%;height:100%;border:0;padding-top:env(safe-area-inset-top);box-sizing:border-box;background:var(--frost)}
-/* clock pill – top-left corner, out of the app's own header text */
-#clockPill{position:fixed;z-index:10;top:calc(10px + env(safe-area-inset-top));left:12px;display:flex;align-items:center;gap:7px;
+/* own top strip, so the clock pill never covers the app's buttons (the app's 'name / switch' button sits top-left) */
+#topbar{position:fixed;top:0;left:0;right:0;z-index:9;height:calc(54px + env(safe-area-inset-top));box-sizing:border-box;padding-top:env(safe-area-inset-top);background:var(--frost);border-bottom:1px solid var(--hair)}
+iframe{position:fixed;left:0;right:0;bottom:0;top:calc(54px + env(safe-area-inset-top));width:100%;height:calc(100% - 54px - env(safe-area-inset-top));border:0;box-sizing:border-box;background:var(--frost)}
+/* clock pill – inside the top strip */
+#clockPill{position:fixed;z-index:10;top:calc(9px + env(safe-area-inset-top));left:12px;display:flex;align-items:center;gap:7px;
   background:var(--paper);color:var(--ink);border:1px solid var(--hair);border-radius:999px;padding:8px 13px 8px 11px;
   font:600 14px Rubik,sans-serif;box-shadow:0 4px 14px rgba(21,22,58,.10);cursor:pointer}
 #clockPill .dot{width:9px;height:9px;border-radius:50%;background:var(--mut)}
@@ -53,6 +55,7 @@ iframe{position:fixed;inset:0;width:100%;height:100%;border:0;padding-top:env(sa
 <body>
 <iframe src="https://script.google.com/macros/s/AKfycbzj6HBcckXy87BxU_2MvAE4O7vjdgnQ6sgA2qoTrwquGUVDWVTfyVO5q3tgcUw9UCJ7vg/exec" title="משמרות אייטק" allow="clipboard-write"></iframe>
 
+<div id="topbar"></div>
 <button id="clockPill" type="button" aria-haspopup="dialog"><span class="dot"></span><span id="pillTxt">נוכחות</span></button>
 <div id="sheetBg"></div>
 <section id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
