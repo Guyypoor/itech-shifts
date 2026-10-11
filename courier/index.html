@@ -659,11 +659,11 @@ async function routeOrder(start,pts,end,t0){
   if(urg.length){ ord=solveSet(mx.T,urg,0,-1,t0,W); const last=ord[ord.length-1]; const t1=simulate(mx.T,ord,0,-1,t0,W).t; ord=ord.concat(solveSet(mx.T,rest,last,endIdx,t1,W)); }
   else ord=solveSet(mx.T,rest,0,endIdx,t0,W);
   // timings
-  let t=t0, prev=0, meters=0; const legs=[], etas=[], lates=[];
-  for(const i of ord){ const d=mx.T[prev][i]; meters+=mx.Dm[prev][i]; t+=d; const w=W[i]; if(w&&w.a!=null&&t<w.a) t=w.a; legs.push(d); etas.push(t); lates.push(!!(w&&w.b!=null&&t>w.b)); t+=SVC; prev=i; }
-  if(endIdx>=0){ meters+=mx.Dm[prev][endIdx]; t+=mx.T[prev][endIdx]; }
+  let t=t0, prev=0, meters=0, drive=0, wait=0; const legs=[], etas=[], lates=[];
+  for(const i of ord){ const d=mx.T[prev][i]; meters+=mx.Dm[prev][i]; t+=d; drive+=d; { const w0=W[i]; if(w0&&w0.a!=null&&t<w0.a) wait+=w0.a-t; } const w=W[i]; if(w&&w.a!=null&&t<w.a) t=w.a; legs.push(d); etas.push(t); lates.push(!!(w&&w.b!=null&&t>w.b)); t+=SVC; prev=i; }
+  if(endIdx>=0){ meters+=mx.Dm[prev][endIdx]; t+=mx.T[prev][endIdx]; drive+=mx.T[prev][endIdx]; }
   const exact=!Object.keys(W).length&&urg.length<=15&&rest.length<=15;
-  return {ord:ord.map(i=>i-1), legs, etas, lates, mx, sec:t-t0, meters, exact, endIdx};
+  return {ord:ord.map(i=>i-1), legs, etas, lates, mx, sec:t-t0, drive, wait, finish:t, meters, exact, endIdx};
 }
 function departSec(){
   const d=secOfDay(state.departAt||""); if(d!=null) return d;
@@ -716,7 +716,7 @@ async function orderGeo(){
     state.stops=[...sorted,...lost,...done]; state.line=null; save(); render();
     const approx=open.filter(s=>s.geo==="city").length, exactN=open.filter(s=>s.geo==="house").length;
     let msg;
-    if(r.mx.road) msg="המסלול הקצר ביותר לפי כבישים"+(r.exact&&open.length>1?" (נבדקו כל האפשרויות)":"")+": כ־"+Math.round(r.meters/1000)+" ק\"מ, כ־"+Math.round(r.sec/60)+" דקות כולל עצירות"+(state.endLL?" ועד הסיום":"")+".";
+    if(r.mx.road) msg="המסלול הקצר ביותר לפי כבישים"+(r.exact&&open.length>1?" (נבדקו כל האפשרויות)":"")+": כ־"+Math.round(r.meters/1000)+" ק\"מ, כ־"+Math.round(r.drive/60)+" דקות נסיעה"+(state.endLL?" כולל הדרך לסיום":"")+". סיום משוער "+clock(dayMs(r.finish))+(r.wait>600?" (כולל המתנה לשעה שלקוח ביקש)":"")+".";
     else msg="אין חיבור לשרת הכבישים, לכן סודר לפי קו אווירי: כ־"+Math.round(r.meters/1000)+" ק\"מ משוער.";
     msg+=" "+exactN+" מתוך "+open.length+" אותרו עד רמת הבית"+(gcOffline?" (אין חיבור לשירות המפות – השאר לפי רחוב)":"")+".";
     if(open.some(s=>s.urgent)) msg+=" משלוחים דחופים בהתחלה.";
@@ -843,7 +843,7 @@ async function splitCrew(){
     const N=names.length, groups=names.map(()=>[]);
     withLL.forEach((s,i)=>groups[Math.min(N-1,Math.floor(i*N/withLL.length))].push(s));
     noLL.forEach((s,i)=>groups[i%N].push(s));
-    const base=location.origin+location.pathname;
+    const base=location.origin+location.pathname.replace(/index\.html$/,"");
     for(let g=0;g<N;g++){
       const list=groups[g];
       const payload={v:1,c:names[g],s:state.start||"",d:state.defCity||"",em:state.endMode||"none",ea:state.endAddr||"",
