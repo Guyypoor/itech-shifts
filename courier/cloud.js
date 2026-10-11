@@ -8,7 +8,7 @@ window.Cloud = (function(){
   const on = !!(cfg.url && cfg.anonKey && window.supabase);
   const sb = on ? window.supabase.createClient(cfg.url, cfg.anonKey, {auth:{persistSession:true, autoRefreshToken:true, storageKey:"courier-auth"}}) : null;
   const phoneDigits = p => String(p||"").replace(/\D/g,"").replace(/^972/,"0");
-  const phoneEmail = p => phoneDigits(p) + "@couriers.guy-shlichuyot.app";
+  const phoneEmail = p => phoneDigits(p) + "@couriers.guy-mishlohim.app";
   function todayIL(){ return new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Jerusalem"}); }
   async function me(){
     if(!sb) return null;
