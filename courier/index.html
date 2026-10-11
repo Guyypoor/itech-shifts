@@ -782,7 +782,8 @@ function customerMsg(s){
 }
 
 /* ---------- delivery report to the manager (Google Form → Google Sheet) ---------- */
-const TRACK={url:"", f:{}};
+const TRACK={url:"https://docs.google.com/forms/d/e/1FAIpQLSfakcYacIhJaBOuZL5O6qzIjF3XrcZlqKdDq1IJDg2ZT2czNg/formResponse",
+  f:{c:"entry.856930411",a:"entry.1840450325",n:"entry.1460122380",p:"entry.1448933149",eta:"entry.1630600669",st:"entry.1745996628",r:"entry.1321024459",t:"entry.2086123227"}};
 function trackQueue(){ try{ return JSON.parse(localStorage.getItem("courier-track-q")||"[]"); }catch(e){ return []; } }
 function trackSaveQ(q){ try{ localStorage.setItem("courier-track-q",JSON.stringify(q.slice(-200))); }catch(e){} }
 function track(s,status,reason){

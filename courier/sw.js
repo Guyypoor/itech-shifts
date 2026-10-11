@@ -1,4 +1,4 @@
-const V="courier-v8";
+const V="courier-v9";
 const LOCAL=["./","index.html","manifest.webmanifest","geo.json","icon-192.png","icon-512.png","apple-touch-icon.png"];
 const CACHE_HOSTS=[location.host,"cdnjs.cloudflare.com","cdn.jsdelivr.net","fonts.googleapis.com","fonts.gstatic.com"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(LOCAL)).then(()=>self.skipWaiting()));});
