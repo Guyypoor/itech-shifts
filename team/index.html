@@ -1,0 +1,399 @@
+<!doctype html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>משמרות אייטק</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="משמרות">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#EEF1F7">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="cloud.js"></script>
+<style>
+:root{--frost:#EEF1F7;--paper:#FFFFFF;--ink:#15163A;--mut:#6B6F8E;--hair:#DCE1EC;--volt:#3355FF;--sun:#FFB020;--sunbg:#FFF4DC;--dusk:#6E56CF;--duskbg:#EFEBFF;--coral:#F0505A;--go:#14B87A}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--frost);color:var(--ink);font-family:Rubik,-apple-system,"Segoe UI",Arial,sans-serif}
+button{font-family:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--volt);outline-offset:2px}
+.app{max-width:460px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top)) 18px 128px}
+.top{display:flex;align-items:center;justify-content:space-between;height:44px}
+.word{font-weight:800;font-size:19px;letter-spacing:-.02em;direction:ltr}
+.word i{font-style:normal;color:var(--volt)}
+.mebtn{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--mut);padding:4px}
+.mebtn .av{width:30px;height:30px;border-radius:10px;font-size:13px}
+.nav{display:flex;gap:22px;margin:10px 0 22px;border-bottom:1px solid var(--hair)}
+.nav button{padding:10px 0 12px;font-size:15px;font-weight:500;color:var(--mut);border-bottom:3px solid transparent;margin-bottom:-1px}
+.nav button.on{color:var(--ink);font-weight:700;border-color:var(--ink)}
+h1{font-size:30px;line-height:1.15;font-weight:800;letter-spacing:-.02em}
+.sub{color:var(--mut);font-size:15px;margin-top:8px;line-height:1.5}
+.card{margin-top:22px;background:var(--paper);border-radius:22px;padding:20px}
+label.f{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}
+input.in,select.in{width:100%;font:500 17px Rubik,sans-serif;color:var(--ink);background:var(--frost);border:1.5px solid var(--hair);border-radius:14px;padding:13px 14px;outline:none}
+input.in:focus,select.in:focus{border-color:var(--volt)}
+.err{color:var(--coral);font-weight:600;font-size:14px;min-height:20px;margin-top:12px}
+.btn{display:block;width:100%;margin-top:18px;padding:16px;border-radius:16px;background:var(--volt);color:#fff;font-size:17px;font-weight:700}
+.btn:disabled{background:#B9C3E8}
+.btn.ghost{background:var(--frost);color:var(--ink)}
+.link{margin-top:16px;font-size:15px;font-weight:700;color:var(--volt);padding:8px 0;display:block}
+.av{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-weight:800;font-size:19px;color:#fff;flex:none;background-size:cover;background-position:center}
+.prof{display:flex;align-items:center;gap:14px;margin-top:16px}
+.prof .av{width:58px;height:58px;border-radius:18px;font-size:24px}
+.prof b{font-size:17px}
+.prof .link{margin-top:2px;padding:2px 0}
+.bat{margin:22px 0 6px;display:flex;align-items:center;gap:14px}
+.cells{flex:1;display:flex;gap:4px;padding:6px;border:2.5px solid var(--ink);border-radius:12px;position:relative;margin-left:8px}
+.cells:after{content:"";position:absolute;left:-9px;top:50%;width:6px;height:16px;margin-top:-8px;border-radius:4px 0 0 4px;background:var(--ink)}
+.cell{flex:1;height:22px;border-radius:4px;background:#E3E7F1;transition:background .25s}
+.cell.am{background:var(--sun)} .cell.pm{background:var(--dusk)}
+.bat.off .cells{border-color:var(--coral)} .bat.off .cells:after{background:var(--coral)}
+.num{font-size:28px;font-weight:800;min-width:44px;text-align:center;line-height:1}
+.num small{display:block;font-size:11px;font-weight:500;color:var(--mut);margin-top:3px}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--mut);margin:8px 2px 0}
+.legend span:before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-left:6px;vertical-align:-1px}
+.legend .a:before{background:var(--sun)} .legend .b:before{background:var(--dusk)}
+.list{margin-top:18px;background:var(--paper);border-radius:22px;padding:6px 14px}
+.list.dis .row{opacity:.3;pointer-events:none}
+.row{display:grid;grid-template-columns:70px 1fr 1fr;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--hair)}
+.row:last-of-type{border-bottom:0}
+.dn{font-weight:700;font-size:16px;line-height:1.1}
+.dn small{display:block;font-weight:400;font-size:12px;color:var(--mut);margin-top:3px}
+.t{height:50px;border-radius:14px;border:1.5px solid var(--hair);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--mut);transition:background .15s,border-color .15s,color .15s}
+.t:active{transform:scale(.97)}
+.t.am.on{background:var(--sunbg);border-color:var(--sun);color:#8A5A00}
+.t.pm.on{background:var(--duskbg);border-color:var(--dusk);color:#45309E}
+.t.ph{visibility:hidden}
+.tools{display:flex;gap:10px;margin-top:14px}
+.tool{flex:1;padding:13px 10px;border-radius:14px;background:var(--paper);font-size:14px;font-weight:700}
+.tool.off.on{background:#FFE9EA;color:var(--coral)}
+textarea{width:100%;margin-top:12px;min-height:88px;border-radius:16px;border:1.5px solid var(--hair);background:var(--paper);color:var(--ink);padding:14px;font-size:16px;font-family:inherit;resize:none;outline:none}
+textarea:focus{border-color:var(--volt)}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--frost) 70%,rgba(238,241,247,0))}
+.cta{display:block;width:100%;max-width:424px;margin:0 auto;padding:17px;border-radius:18px;background:var(--volt);color:#fff;font-size:17px;font-weight:700}
+.cta:disabled{background:#B9C3E8}
+.done{padding-top:24px}
+.okmark{width:76px;height:76px;border-radius:24px;background:var(--go);display:grid;place-items:center;margin-bottom:22px;animation:pop .4s cubic-bezier(.2,1.5,.4,1)}
+.okmark svg{width:38px;height:38px}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+.sum{margin-top:22px;background:var(--paper);border-radius:20px;padding:6px 18px}
+.sum div{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--hair);font-size:15px}
+.sum div:last-child{border-bottom:0}
+.sum span{color:var(--mut)}
+.wk{display:flex;gap:8px;margin-top:16px}
+.wk button{padding:8px 14px;border-radius:99px;background:var(--paper);font-size:14px;font-weight:600;color:var(--mut)}
+.wk button.on{background:var(--ink);color:#fff}
+.fin{margin-top:16px;background:var(--paper);border-radius:22px;padding:4px 16px}
+.fd{padding:14px 0;border-bottom:1px solid var(--hair)}
+.fd:last-child{border-bottom:0}
+.fdh{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.fdh b{font-size:16px} .fdh span{font-size:12px;color:var(--mut)}
+.fd.me .fdh b:after{content:"את/ה במשמרת";font-size:11px;font-weight:700;color:var(--volt);background:#E6EBFF;padding:3px 8px;border-radius:99px;margin-right:8px;vertical-align:2px}
+.fr{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap}
+.fl{font-size:13px;color:var(--mut);width:58px;flex:none}
+.pp{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;border-radius:99px;background:#F1F3F9;font-size:14px;font-weight:500}
+.pp i{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-style:normal;font-size:11px;color:#fff;font-weight:800;background-size:cover;background-position:center}
+.pp.me{background:#E6EBFF;font-weight:700}
+.empty{color:var(--mut);text-align:center;padding:48px 0}
+.stat{background:var(--paper);border-radius:22px;padding:20px;display:flex;align-items:center;gap:16px;margin-top:20px}
+.stat .big{font:800 32px Rubik,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.stat .lbl{color:var(--mut);font-size:14px;margin-top:2px}
+.ring{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:var(--frost);border:2.5px solid var(--hair);font-size:24px;flex:none}
+.stat.in .ring{border-color:var(--go);box-shadow:0 0 0 5px rgba(20,184,122,.15)}
+.punch{width:100%;margin-top:16px;border-radius:18px;padding:19px;font:700 19px Rubik,sans-serif;color:#fff;background:var(--go)}
+.punch.out{background:var(--coral)}
+.punch:disabled{opacity:.55}
+.msg{min-height:22px;margin-top:12px;font-size:14px;line-height:1.45}
+.msg.err{color:var(--coral);font-weight:600}.msg.ok{color:var(--go);font-weight:600}
+.note{color:var(--mut);font-size:12.5px;margin-top:10px;line-height:1.5}
+.hrs{margin-top:20px;background:var(--paper);border-radius:20px;padding:6px 18px}
+.hrs div{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--hair);font-size:14px;font-variant-numeric:tabular-nums}
+.hrs div:last-child{border-bottom:0}
+.hrs .tot{font-weight:800;font-size:15px}
+.hrs .flag{color:var(--coral);font-size:12px;font-weight:600}
+.toast{position:fixed;top:calc(12px + env(safe-area-inset-top));left:18px;right:18px;max-width:424px;margin:0 auto;padding:14px 16px;border-radius:16px;background:var(--ink);color:#fff;font-weight:500;font-size:14px;text-align:center;transform:translateY(-150%);opacity:0;visibility:hidden;transition:transform .3s,opacity .3s;z-index:9}
+.toast.show{transform:none;opacity:1;visibility:visible}
+.load{display:flex;justify-content:center;padding:90px 0}
+.spin{width:30px;height:30px;border-radius:50%;border:3px solid var(--hair);border-top-color:var(--volt);animation:r .9s linear infinite}
+@keyframes r{to{transform:rotate(360deg)}}
+.menu{position:fixed;inset:0;z-index:20;background:rgba(21,22,58,.35);display:none}
+.menu .box{position:absolute;top:calc(60px + env(safe-area-inset-top));left:18px;background:var(--paper);border-radius:18px;padding:8px;min-width:200px;box-shadow:0 10px 30px rgba(21,22,58,.18)}
+.menu .box button{display:block;width:100%;text-align:right;padding:12px 14px;border-radius:12px;font-size:15px;font-weight:600}
+.menu .box button:active{background:var(--frost)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app" id="app"><div class="load"><div class="spin"></div></div></div>
+<div class="bar" id="bar" style="display:none"><button class="cta" id="cta" type="button">שליחת זמינות</button></div>
+<div class="toast" id="toast" role="status"></div>
+<div class="menu" id="menu"><div class="box">
+  <button type="button" id="mAv">תמונת פרופיל</button>
+  <button type="button" id="mAdmin" style="display:none">פאנל מנהל</button>
+  <button type="button" id="mOut" style="color:var(--coral)">התנתקות</button>
+</div></div>
+<input type="file" id="avf" accept="image/*" hidden>
+<script>
+(() => {
+"use strict";
+const C = window.Cloud, sb = C.sb;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let P = null, TEAM = {}, view = "form", screen = "form", st = null, showNote = false, clock = null, busy = false, finWeeks = [], finIdx = 0, timer = null;
+const TW = C.targetWeek();
+
+function toast(m) { const t = $("toast"); t.textContent = m; t.className = "toast show"; clearTimeout(t._h); t._h = setTimeout(() => { t.className = "toast"; }, 3000); }
+function avStyle(n) { const t = TEAM[n] || {}; return t.avatar ? "background-image:url(" + t.avatar + ");background-color:#fff" : "background:" + (t.color || "#6B6F8E") + ";color:" + (t.fg || "#fff"); }
+function avTxt(n) { return (TEAM[n] || {}).avatar ? "" : esc(String(n || "?").charAt(0)); }
+function spinner() { $("bar").style.display = "none"; $("app").innerHTML = '<div class="load"><div class="spin"></div></div>'; }
+
+// ---------- auth screens ----------
+async function boot() {
+  if (!C.on) { $("app").innerHTML = '<div class="top"><div class="word">I-TECH<i>.</i>shifts</div></div><h1>המערכת בהקמה</h1><div class="sub">עוד רגע זה עובד. נסו שוב מאוחר יותר.</div>'; return; }
+  spinner();
+  try { P = await C.me(); } catch (e) { P = null; }
+  if (!P) return loginView();
+  if (P.status === "blocked") return msgView("החשבון חסום", "לפרטים פנה/י לגיא.");
+  if (P.status !== "active") return msgView("ממתין לאישור", "נרשמת בהצלחה" + (P.staff_name ? " בתור " + esc(P.staff_name) : "") + ". גיא צריך לאשר את החשבון, ואז אפשר להיכנס.", true);
+  if (!P.staff_name) {
+    if (P.role === "admin") { location.href = "admin.html"; return; }
+    return msgView("החשבון עוד לא משויך", "גיא צריך לשייך את החשבון לשם שלך במערכת.", true);
+  }
+  $("mAdmin").style.display = P.role === "admin" ? "" : "none";
+  await loadTeam();
+  sb.from("profiles").update({ last_seen: new Date().toISOString() }).eq("id", P.id).then(() => {});
+  await loadForm();
+  render();
+}
+function msgView(title, sub, refresh) {
+  $("bar").style.display = "none";
+  $("app").innerHTML = '<div class="top"><div class="word">I-TECH<i>.</i>shifts</div></div><h1>' + title + '</h1><div class="sub">' + sub + '</div>' +
+    (refresh ? '<button class="btn" id="rf" type="button">בדיקה שוב</button>' : '') + '<button class="link" id="lo" type="button">התנתקות</button>';
+  if ($("rf")) $("rf").onclick = boot;
+  $("lo").onclick = logout;
+}
+function loginView() {
+  $("bar").style.display = "none";
+  $("app").innerHTML = '<div class="top"><div class="word">I-TECH<i>.</i>shifts</div></div><h1>כניסה</h1><div class="sub">עם מספר הטלפון והסיסמה שבחרת בהרשמה.</div>' +
+    '<form class="card" id="lf"><label class="f" for="lp">מספר טלפון</label><input class="in" id="lp" type="tel" inputmode="tel" autocomplete="username" dir="ltr" required>' +
+    '<label class="f" for="lw">סיסמה</label><input class="in" id="lw" type="password" autocomplete="current-password" dir="ltr" required>' +
+    '<div class="err" id="le"></div><button class="btn" type="submit">כניסה</button></form>' +
+    '<button class="link" id="toReg" type="button">עוד אין לך חשבון? הרשמה</button><div class="sub" style="font-size:13px">שכחת סיסמה או החלפת טלפון? פנה/י לגיא.</div>';
+  $("toReg").onclick = regView;
+  $("lf").onsubmit = async e => {
+    e.preventDefault(); const b = e.target.querySelector("button"); b.disabled = true; $("le").textContent = "";
+    const { error } = await sb.auth.signInWithPassword({ email: C.phoneEmail($("lp").value), password: $("lw").value });
+    b.disabled = false;
+    if (error) return $("le").textContent = C.errText(error);
+    boot();
+  };
+}
+async function regView() {
+  spinner();
+  let names = [];
+  try { const { data } = await sb.rpc("reg_names"); names = data || []; } catch (e) {}
+  $("app").innerHTML = '<div class="top"><div class="word">I-TECH<i>.</i>shifts</div></div><h1>הרשמה</h1><div class="sub">פעם אחת. אחרי שגיא מאשר, נכנסים עם הטלפון והסיסמה מכל מכשיר.</div>' +
+    '<form class="card" id="rf"><label class="f" for="rn">מי את/ה?</label><select class="in" id="rn" required><option value="">בחר/י שם…</option>' +
+    names.map(x => '<option value="' + esc(x.name) + '"' + (x.taken ? " disabled" : "") + '>' + esc(x.name) + (x.taken ? " (כבר רשום/ה)" : "") + '</option>').join("") + '</select>' +
+    '<label class="f" for="rp">מספר טלפון</label><input class="in" id="rp" type="tel" inputmode="tel" autocomplete="username" dir="ltr" required>' +
+    '<label class="f" for="rw">סיסמה (לפחות 6 תווים)</label><input class="in" id="rw" type="password" autocomplete="new-password" dir="ltr" minlength="6" required>' +
+    '<div class="err" id="re"></div><button class="btn" type="submit">הרשמה</button></form><button class="link" id="toLog" type="button">כבר יש לך חשבון? כניסה</button>';
+  $("toLog").onclick = loginView;
+  $("rf").onsubmit = async e => {
+    e.preventDefault(); const b = e.target.querySelector("button"); $("re").textContent = "";
+    const phone = C.phoneDigits($("rp").value);
+    if (!/^05\d{8}$/.test(phone)) return $("re").textContent = "מספר טלפון לא תקין (05X-XXXXXXX).";
+    b.disabled = true;
+    const { data, error } = await sb.auth.signUp({ email: C.phoneEmail(phone), password: $("rw").value, options: { data: { phone, staff_name: $("rn").value } } });
+    if (error) { b.disabled = false; return $("re").textContent = C.errText(error); }
+    if (!data.session) { const r = await sb.auth.signInWithPassword({ email: C.phoneEmail(phone), password: $("rw").value }); if (r.error) { b.disabled = false; return $("re").textContent = C.errText(r.error); } }
+    boot();
+  };
+}
+async function logout() { closeMenu(); try { await sb.auth.signOut(); } catch (e) {} P = null; loginView(); }
+
+// ---------- data ----------
+async function loadTeam() {
+  const { data } = await sb.rpc("team"); TEAM = {}; (data || []).forEach(t => { TEAM[t.name] = t; });
+  if (!TEAM[P.staff_name]) TEAM[P.staff_name] = { name: P.staff_name };
+  if (P.avatar) TEAM[P.staff_name].avatar = P.avatar;
+}
+async function loadForm() {
+  const { data } = await sb.from("availability").select("*").eq("week_start", TW).eq("staff_name", P.staff_name).maybeSingle();
+  st = data ? { off: data.off, flags: data.flags.slice(), note: data.note || "", saved: data.updated_at } : { off: false, flags: Array(11).fill(false), note: "", saved: null };
+  showNote = !!st.note; screen = st.saved ? "done" : "form";
+}
+async function loadFinal() {
+  const { data } = await sb.from("weeks").select("week_start,final,published_at").eq("published", true).gte("week_start", C.thisWeek()).order("week_start");
+  finWeeks = data || []; finIdx = finWeeks.length > 1 && C.todayIL() >= finWeeks[1].week_start ? 1 : 0;
+}
+async function loadClock() {
+  const r = await sb.rpc("clock_state"); clock = r.data || { ok: false };
+  const from = C.todayIL().slice(0, 8) + "01";
+  const s = await sb.from("sessions").select("*").gte("day", from).order("t_in", { ascending: false });
+  clock.sessions = s.data || [];
+}
+
+// ---------- views ----------
+function header() {
+  const n = P.staff_name;
+  return '<div class="top"><div class="word">I-TECH<i>.</i>shifts</div><button class="mebtn" id="meb" type="button" aria-haspopup="menu"><span>' + esc(n) + '</span><span class="av" style="' + avStyle(n) + '">' + avTxt(n) + '</span></button></div>' +
+    '<div class="nav">' + [["form", "הזמינות שלי"], ["final", "הסידור"], ["clock", "נוכחות"]].map(x => '<button type="button" data-v="' + x[0] + '" class="' + (view === x[0] ? "on" : "") + '">' + x[1] + '</button>').join("") + '</div>';
+}
+function render() {
+  let h = header();
+  if (view === "final") { h += finalView(); $("bar").style.display = "none"; }
+  else if (view === "clock") { h += clockView(); $("bar").style.display = "none"; }
+  else if (screen === "done") { h += doneView(); $("bar").style.display = "none"; }
+  else { h += formView(); $("bar").style.display = ""; cta(); }
+  $("app").innerHTML = h;
+  $("meb").onclick = openMenu;
+  document.querySelectorAll(".nav button").forEach(b => b.onclick = () => setView(b.dataset.v));
+  if ($("note")) $("note").oninput = function () { st.note = this.value; };
+  document.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { st.flags[+b.dataset.t] = !st.flags[+b.dataset.t]; render(); });
+  if ($("tOff")) $("tOff").onclick = () => { st.off = !st.off; render(); };
+  if ($("tAll")) $("tAll").onclick = () => { const v = cnt() !== 11; st.off = false; st.flags = st.flags.map(() => v); render(); };
+  if ($("oNote")) $("oNote").onclick = () => { showNote = true; render(); setTimeout(() => $("note") && $("note").focus(), 50); };
+  if ($("edit")) $("edit").onclick = () => { screen = "form"; render(); };
+  if ($("pAv")) $("pAv").onclick = pickAv;
+  if ($("pAv2")) $("pAv2").onclick = pickAv;
+  document.querySelectorAll("[data-w]").forEach(b => b.onclick = () => { finIdx = +b.dataset.w; render(); });
+  if ($("punch")) $("punch").onclick = punch;
+}
+async function setView(v) {
+  view = v;
+  if (v === "final") { spinner(); await loadFinal(); }
+  if (v === "clock") { spinner(); await loadClock(); tick(); }
+  render(); window.scrollTo(0, 0);
+}
+const cnt = () => st.flags.filter(Boolean).length;
+function battery() {
+  let c = ""; for (let i = 0; i < 11; i++) c += '<span class="cell' + (!st.off && st.flags[i] ? (i % 2 ? " pm" : " am") : "") + '"></span>';
+  return '<div class="bat' + (st.off ? " off" : "") + '"><div class="num">' + (st.off ? "—" : cnt()) + '<small>משמרות</small></div><div class="cells" aria-hidden="true">' + c + '</div></div>' +
+    '<div class="legend"><span class="a">בוקר <bdi dir="ltr">09–14</bdi></span><span class="b">צהריים <bdi dir="ltr">14–19</bdi></span></div>';
+}
+function tile(i, c, t) { return '<button type="button" class="t ' + c + (st.flags[i] ? " on" : "") + '" aria-pressed="' + !!st.flags[i] + '" data-t="' + i + '">' + t + '</button>'; }
+function formView() {
+  const me = P.staff_name;
+  let h = '<h1>מתי את/ה יכול/ה לעבוד?</h1><div class="sub">שבוע <bdi dir="ltr">' + C.weekLabel(TW) + '</bdi>. מגישים עד חמישי בשמונה בערב.</div>';
+  h += '<div class="prof"><button type="button" class="av" id="pAv" style="' + avStyle(me) + '" aria-label="תמונת פרופיל">' + avTxt(me) + '</button><div><b>' + esc(me) + '</b><button type="button" class="link" id="pAv2">' + ((TEAM[me] || {}).avatar ? "החלפת תמונה" : "הוספת תמונה") + '</button></div></div>';
+  h += battery() + '<div class="list' + (st.off ? " dis" : "") + '">';
+  for (let d = 0; d < 6; d++) {
+    h += '<div class="row"><div class="dn">' + C.DAYS[d] + '<small>' + C.ddmm(C.addDays(TW, d)) + '</small></div>' + tile(d * 2, "am", "בוקר") + (d < 5 ? tile(d * 2 + 1, "pm", "צהריים") : '<div class="t ph"></div>') + '</div>';
+  }
+  h += '</div><div class="tools"><button type="button" id="tOff" class="tool off' + (st.off ? " on" : "") + '">' + (st.off ? "לא עובד/ת השבוע ✓" : "לא עובד/ת השבוע") + '</button><button type="button" id="tAll" class="tool">' + (cnt() === 11 ? "ניקוי הכול" : "סימון הכול") + '</button></div>';
+  h += showNote ? '<textarea id="note" maxlength="300" placeholder="למשל: ברביעי אני צריכה לצאת ב-17:00">' + esc(st.note) + '</textarea>' : '<button type="button" class="link" id="oNote">הוספת הערה או בקשה</button>';
+  return h;
+}
+function cta() {
+  const n = cnt(), b = $("cta");
+  if (st.off) { b.disabled = false; b.textContent = "שליחה: לא עובד/ת השבוע"; }
+  else { b.disabled = n === 0; b.textContent = n ? "שליחת זמינות (" + n + ")" : "בחרו לפחות משמרת אחת"; }
+}
+$("cta").onclick = async () => {
+  if (!st.off && !cnt()) return;
+  const b = $("cta"); b.disabled = true; b.textContent = "שולח…";
+  const row = { week_start: TW, staff_name: P.staff_name, off: st.off, flags: st.flags, note: String(st.note || "").slice(0, 300), updated_at: new Date().toISOString() };
+  const { error } = await sb.from("availability").upsert(row, { onConflict: "week_start,staff_name" });
+  if (error) { toast(C.errText(error)); return cta(); }
+  st.saved = row.updated_at; screen = "done"; render(); window.scrollTo(0, 0);
+};
+function doneView() {
+  let rows = "";
+  if (st.off) rows = '<div><b>השבוע</b><span>לא עובד/ת</span></div>';
+  else for (let d = 0; d < 6; d++) { const a = []; if (st.flags[d * 2]) a.push("בוקר"); if (d < 5 && st.flags[d * 2 + 1]) a.push("צהריים"); if (a.length) rows += '<div><b>' + C.DAYS[d] + " " + C.ddmm(C.addDays(TW, d)) + '</b><span>' + a.join(" + ") + '</span></div>'; }
+  if (st.note) rows += '<div><b>הערה</b><span>' + esc(st.note) + '</span></div>';
+  return '<div class="done"><div class="okmark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>' +
+    '<h1>הזמינות נשלחה, ' + esc(P.staff_name) + '</h1><div class="sub">שבוע <bdi dir="ltr">' + C.weekLabel(TW) + '</bdi>. אפשר לשנות עד חמישי בשמונה בערב. הסידור יופיע בלשונית "הסידור".</div>' +
+    '<div class="sum">' + rows + '</div><button type="button" class="link" id="edit">שינוי הזמינות</button></div>';
+}
+function finalView() {
+  if (!finWeeks.length) return '<h1>הסידור</h1><div class="empty">הסידור לשבוע הבא עוד לא פורסם.</div>';
+  const w = finWeeks[finIdx], me = P.staff_name;
+  let h = '<h1>הסידור</h1><div class="sub">שבוע <bdi dir="ltr">' + C.weekLabel(w.week_start) + '</bdi></div>';
+  if (finWeeks.length > 1) h += '<div class="wk">' + finWeeks.map((x, i) => '<button type="button" data-w="' + i + '" class="' + (i === finIdx ? "on" : "") + '">' + (x.week_start === C.thisWeek() ? "השבוע" : "שבוע הבא") + '</button>').join("") + '</div>';
+  h += '<div class="fin">';
+  (w.final || []).forEach(r => {
+    const am = r.am || [], pm = r.pm || [], mine = am.includes(me) || pm.includes(me);
+    if (!am.length && !pm.length) return;
+    h += '<div class="fd' + (mine ? " me" : "") + '"><div class="fdh"><b>' + C.DAYS[r.d] + '</b><span>' + C.ddmm(C.addDays(w.week_start, r.d)) + '</span></div>' + frow("בוקר", am) + (pm.length ? frow("צהריים", pm) : "") + '</div>';
+  });
+  return h + '</div>';
+}
+function frow(l, ns) { return '<div class="fr"><span class="fl">' + l + '</span>' + ns.map(n => '<span class="pp' + (n === P.staff_name ? " me" : "") + '"><i style="' + avStyle(n) + '">' + avTxt(n) + '</i>' + esc(n) + '</span>').join("") + '</div>'; }
+
+// ---------- clock ----------
+const hhmm = iso => new Date(iso).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jerusalem" });
+const dur = ms => { const m = Math.max(0, Math.floor(ms / 60000)); return Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0"); };
+function clockView() {
+  if (!clock || !clock.ok) return '<div class="empty">' + esc((clock && clock.error) || "אין חיבור לשרת.") + '</div>';
+  const on = clock.mode !== "off";
+  let h = '<h1>שעון נוכחות</h1><div class="sub">' + (clock.mode === "remote" ? "היום גיא אישר לך להחתים גם מחוץ לחנות." : clock.mode === "off" ? "השעון כבוי כרגע. לפרטים פנה/י לגיא." : "מחתימים כניסה ויציאה רק מתוך החנות.") + '</div>';
+  h += '<div class="stat' + (clock.in ? " in" : "") + '"><div class="ring">' + (clock.in ? "🟢" : "⏱") + '</div><div><div class="big">' + (clock.in ? dur(Date.now() - Date.parse(clock.since)) : "לא בעבודה") + '</div><div class="lbl">' + (clock.in ? "בעבודה מאז " + hhmm(clock.since) : "החתם/י כניסה כשהגעת לחנות") + '</div></div></div>';
+  h += '<button type="button" class="punch' + (clock.in ? " out" : "") + '" id="punch"' + (busy || !on ? " disabled" : "") + '>' + (!on ? "השעון כבוי" : clock.in ? "החתמת יציאה" : "החתמת כניסה") + '</button><div class="msg" id="msg" role="status"></div>';
+  h += '<div class="note">בלחיצה, הטלפון בודק את המיקום שלך פעם אחת ושולח אותו לבדיקה שאת/ה בחנות. השעה נרשמת לפי השרת. נשמר רק המרחק מהחנות, לא המיקום עצמו.</div>';
+  const ss = clock.sessions || [], tot = ss.reduce((a, s) => a + (Number(s.hours) || 0), 0);
+  h += '<div class="hrs"><div class="tot"><span>השעות שלי החודש</span><span>' + tot.toFixed(2) + '</span></div>';
+  ss.forEach(s => { h += '<div><span>' + C.ddmm(s.day) + ' · ' + hhmm(s.t_in) + '–' + (s.t_out ? hhmm(s.t_out) : "…") + (s.flag ? ' <span class="flag">' + esc(s.flag) + '</span>' : "") + '</span><span>' + (s.hours != null ? Number(s.hours).toFixed(2) : "") + '</span></div>'; });
+  return h + '</div>';
+}
+function tick() { clearInterval(timer); timer = setInterval(() => { if (view === "clock" && clock && clock.in && !busy) render(); }, 30000); }
+function setMsg(t, cls) { const m = $("msg"); if (m) { m.textContent = t || ""; m.className = "msg" + (cls ? " " + cls : ""); } }
+function getPos() {
+  return new Promise((res, rej) => {
+    if (!("geolocation" in navigator)) return rej({ code: 9 });
+    let best = null, done = false, w;
+    const finish = () => { if (done) return; done = true; navigator.geolocation.clearWatch(w); best ? res(best) : rej({ code: 3 }); };
+    w = navigator.geolocation.watchPosition(p => { if (!best || p.coords.accuracy < best.coords.accuracy) best = p; if (best.coords.accuracy <= 40) finish(); },
+      err => { if (err.code === 1) { done = true; navigator.geolocation.clearWatch(w); rej(err); } },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+    setTimeout(finish, 12000);
+  });
+}
+async function punch() {
+  if (busy) return; busy = true; render(); setMsg("בודק מיקום…");
+  let pos = null, out = null;
+  try { pos = await getPos(); }
+  catch (e) { if (clock.mode !== "remote") { busy = false; render(); return setMsg(e && e.code === 1 ? "לא אישרת גישה למיקום. כדי להחתים צריך לאשר מיקום לאתר הזה בהגדרות הטלפון." : "לא הצלחתי לקבל מיקום. בדוק/י שהמיקום בטלפון דלוק ונסה/י שוב.", "err"); } }
+  setMsg("שולח…");
+  const c = pos ? pos.coords : {};
+  const { data, error } = await sb.rpc("punch", { p_action: clock.in ? "out" : "in", p_lat: c.latitude ?? null, p_lon: c.longitude ?? null, p_acc: c.accuracy ?? null, p_device: (navigator.userAgent.match(/iPhone|Android|iPad|Mac|Windows/) || ["?"])[0] });
+  busy = false;
+  if (error) out = [C.errText(error), "err"];
+  else if (data.ok) { out = [data.msg, "ok"]; try { navigator.vibrate && navigator.vibrate(60); } catch (e) {} }
+  else out = [data.error, "err"];
+  await loadClock(); render(); setMsg(out[0], out[1]);
+}
+
+// ---------- menu + avatar ----------
+function openMenu() { $("menu").style.display = "block"; }
+function closeMenu() { $("menu").style.display = "none"; }
+$("menu").onclick = e => { if (e.target === $("menu")) closeMenu(); };
+$("mOut").onclick = logout;
+$("mAdmin").onclick = () => { location.href = "admin.html"; };
+$("mAv").onclick = () => { closeMenu(); pickAv(); };
+function pickAv() { $("avf").value = ""; $("avf").click(); }
+$("avf").onchange = function () {
+  const f = this.files[0]; if (!f) return; toast("מעלה תמונה…");
+  const rd = new FileReader();
+  rd.onload = () => { const img = new Image(); img.onerror = () => toast("לא הצלחתי לפתוח את התמונה. נסו תמונה אחרת.");
+    img.onload = async () => { const w = img.naturalWidth, h = img.naturalHeight, s = Math.min(w, h), c = document.createElement("canvas"); c.width = c.height = 160;
+      c.getContext("2d").drawImage(img, (w - s) / 2, (h - s) / 2, s, s, 0, 0, 160, 160); const u = c.toDataURL("image/jpeg", .82);
+      const { error } = await sb.from("profiles").update({ avatar: u }).eq("id", P.id);
+      if (error) return toast("התמונה לא נשמרה. נסו שוב.");
+      P.avatar = u; TEAM[P.staff_name].avatar = u; render(); toast("התמונה נשמרה"); };
+    img.src = rd.result; };
+  rd.readAsDataURL(f);
+};
+addEventListener("visibilitychange", () => { if (!document.hidden && P && view === "clock") setView("clock"); });
+boot();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!doctype html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ניהול משמרות – אייטק</title>
+<meta name="theme-color" content="#15163A">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="cloud.js"></script>
+<style>
+:root{--frost:#EEF1F7;--paper:#FFFFFF;--ink:#15163A;--mut:#6B6F8E;--hair:#DCE1EC;--volt:#3355FF;--sun:#FFB020;--sunbg:#FFF4DC;--dusk:#6E56CF;--duskbg:#EFEBFF;--coral:#F0505A;--go:#14B87A}
+*{box-sizing:border-box;margin:0}
+html,body{background:var(--frost);color:var(--ink);font-family:Rubik,-apple-system,"Segoe UI",Arial,sans-serif;font-size:15px}
+button{font-family:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:1100px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top)) 16px 60px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.word{font-weight:800;font-size:20px;direction:ltr}.word i{font-style:normal;color:var(--volt)}
+.word small{font-size:13px;color:var(--mut);font-weight:600;margin-left:8px}
+.tabs{display:flex;gap:6px;margin:16px 0 18px;overflow-x:auto;padding-bottom:2px}
+.tabs button{padding:9px 16px;border-radius:99px;background:var(--paper);font-weight:600;color:var(--mut);white-space:nowrap}
+.tabs button.on{background:var(--ink);color:#fff}
+.tabs .badge{background:var(--coral);color:#fff;border-radius:99px;font-size:11px;padding:1px 7px;margin-right:6px}
+h2{font-size:20px;font-weight:800;margin:4px 0 12px}
+.card{background:var(--paper);border-radius:18px;padding:16px;margin-bottom:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--paper);border-radius:16px;padding:14px}
+.kpi .l{font-size:13px;color:var(--mut)}.kpi .v{font-size:28px;font-weight:800;margin-top:4px}
+.kpi .n{font-size:12px;color:var(--mut);margin-top:2px}
+table{width:100%;border-collapse:collapse}
+th{text-align:right;font-size:13px;color:var(--mut);font-weight:600;padding:8px 6px;border-bottom:1px solid var(--hair);white-space:nowrap}
+td{padding:9px 6px;border-bottom:1px solid var(--hair);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.tw{overflow-x:auto}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.b{padding:7px 12px;border-radius:10px;background:var(--frost);font-weight:600;font-size:14px;white-space:nowrap}
+.b.p{background:var(--volt);color:#fff}.b.g{background:var(--go);color:#fff}.b.r{background:#FFE9EA;color:var(--coral)}
+.b:disabled{opacity:.5}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;background:var(--frost);color:var(--mut)}
+.tag.ok{background:#E3F7EF;color:#0E7F55}.tag.wait{background:var(--sunbg);color:#8A5A00}.tag.bad{background:#FFE9EA;color:var(--coral)}.tag.adm{background:#E6EBFF;color:var(--volt)}
+.av{width:30px;height:30px;border-radius:10px;display:inline-grid;place-items:center;font-weight:800;font-size:13px;color:#fff;background-size:cover;background-position:center;vertical-align:middle;margin-left:8px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sel{padding:8px 10px;border-radius:10px;border:1px solid var(--hair);background:var(--paper)}
+.wkbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.wkbar b{font-size:16px;min-width:130px;text-align:center}
+.grid td.c{text-align:center}
+.yes{color:var(--go);font-weight:800}.no{color:#C7CCDA}
+.offrow{color:var(--coral);font-weight:700}
+.sched td{vertical-align:top}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:6px 10px;border-radius:99px;border:1.5px solid var(--hair);font-size:13px;font-weight:600;background:var(--paper);color:var(--mut)}
+.chip.av-ok{border-style:dashed;border-color:var(--go);color:var(--ink)}
+.chip.on{color:#fff;border-color:transparent}
+.chip.warn{outline:2px solid var(--coral);outline-offset:1px}
+.hint{font-size:13px;color:var(--mut);line-height:1.5}
+.err{color:var(--coral);font-weight:600;min-height:18px;margin-top:8px}
+.login{max-width:380px;margin:60px auto}
+.login input{width:100%;padding:12px;border-radius:12px;border:1.5px solid var(--hair);margin-top:6px;background:var(--frost)}
+.login label{display:block;font-weight:600;margin-top:12px}
+.login .b{width:100%;padding:13px;margin-top:16px;font-size:16px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:14px;font-weight:500;opacity:0;transition:opacity .25s;z-index:9;pointer-events:none}
+.toast.show{opacity:1}
+.mode{display:inline-flex;border:1px solid var(--hair);border-radius:10px;overflow:hidden}
+.mode button{padding:6px 10px;font-size:13px;font-weight:600;color:var(--mut)}
+.mode button.on{background:var(--ink);color:#fff}
+code{background:var(--frost);padding:2px 6px;border-radius:6px;direction:ltr;display:inline-block;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap" id="root"><div class="hint">טוען…</div></div>
+<div class="toast" id="toast"></div>
+<script>
+(() => {
+"use strict";
+const C = window.Cloud, sb = C.sb;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ADMIN_EMAIL = "guypoor@gmail.com";
+let ME = null, tab = "home", STAFF = [], PROFS = [], wk = C.targetWeek(), month = C.todayIL().slice(0, 7), draft = null, AV = {}, WEEK = null;
+function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2600); }
+function fail(e) { toast(C.errText(e)); }
+const hhmm = iso => iso ? new Date(iso).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jerusalem" }) : "";
+const dt = iso => iso ? new Date(iso).toLocaleString("he-IL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jerusalem" }) : "—";
+const staff = n => STAFF.find(s => s.name === n) || { name: n, color: "#6B6F8E", fg: "#fff" };
+function avatar(n) { const p = PROFS.find(x => x.staff_name === n), s = staff(n); return '<span class="av" style="' + (p && p.avatar ? "background-image:url(" + p.avatar + ")" : "background:" + s.color + ";color:" + s.fg) + '">' + (p && p.avatar ? "" : esc(n.charAt(0))) + '</span>'; }
+
+async function boot() {
+  if (!C.on) { $("root").innerHTML = '<h2>המערכת עוד לא מחוברת לשרת</h2><div class="hint">חסרים פרטי החיבור ב-cloud.js.</div>'; return; }
+  try { ME = await C.me(); } catch (e) { ME = null; }
+  if (!ME) return login();
+  if (ME.role !== "admin" || ME.status !== "active") { $("root").innerHTML = '<h2>אין הרשאת מנהל</h2><div class="hint">החשבון הזה הוא חשבון עובד. <a href="./">לאפליקציית העובדים</a></div><button class="b" id="lo">התנתקות</button>'; $("lo").onclick = logout; return; }
+  await loadBase(); show(tab);
+}
+function login(first) {
+  $("root").innerHTML = '<div class="login card"><div class="word">I-TECH<i>.</i>shifts <small>ניהול</small></div><h2 style="margin-top:14px">' + (first ? "יצירת חשבון מנהל" : "כניסת מנהל") + '</h2>' +
+    '<form id="lf"><label>אימייל<input id="le" type="email" dir="ltr" autocomplete="username" value="' + (first ? ADMIN_EMAIL : "") + '" required></label>' +
+    '<label>סיסמה' + (first ? " (לפחות 6 תווים)" : "") + '<input id="lp" type="password" dir="ltr" autocomplete="' + (first ? "new-password" : "current-password") + '" minlength="6" required></label>' +
+    '<div class="err" id="lerr"></div><button class="b p" type="submit">' + (first ? "יצירה וכניסה" : "כניסה") + '</button></form>' +
+    '<button class="b" style="width:100%;margin-top:10px;background:none;color:var(--volt)" id="sw">' + (first ? "כבר יש חשבון? כניסה" : "כניסה ראשונה? יצירת חשבון מנהל") + '</button></div>';
+  $("sw").onclick = () => login(!first);
+  $("lf").onsubmit = async e => {
+    e.preventDefault(); $("lerr").textContent = "";
+    const email = $("le").value.trim(), password = $("lp").value;
+    if (first) {
+      if (email.toLowerCase() !== ADMIN_EMAIL) return $("lerr").textContent = "חשבון מנהל נוצר רק עם " + ADMIN_EMAIL;
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) return $("lerr").textContent = C.errText(error);
+      if (!data.session) { const r = await sb.auth.signInWithPassword({ email, password }); if (r.error) return $("lerr").textContent = C.errText(r.error); }
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) return $("lerr").textContent = C.errText(error);
+    }
+    boot();
+  };
+}
+async function logout() { await sb.auth.signOut(); ME = null; login(); }
+async function loadBase() {
+  const [s, p] = await Promise.all([sb.from("staff").select("*").order("sort").order("name"), sb.from("profiles").select("*").order("created_at")]);
+  STAFF = s.data || []; PROFS = p.data || [];
+}
+function shell(inner) {
+  const pend = PROFS.filter(p => p.status === "pending").length;
+  $("root").innerHTML = '<div class="top"><div class="word">I-TECH<i>.</i>shifts <small>ניהול</small></div><div class="row"><a class="b" href="./">אפליקציית העובדים</a><button class="b" id="lo">התנתקות</button></div></div>' +
+    '<div class="tabs">' + [["home", "לוח"], ["staff", "עובדים" + (pend ? '<span class="badge">' + pend + '</span>' : "")], ["avail", "זמינות"], ["sched", "סידור"], ["clock", "נוכחות"], ["settings", "הגדרות"]]
+      .map(t => '<button data-t="' + t[0] + '" class="' + (tab === t[0] ? "on" : "") + '">' + t[1] + '</button>').join("") + '</div><div id="body">' + inner + '</div>';
+  $("lo").onclick = logout;
+  document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => show(b.dataset.t));
+}
+async function show(t) {
+  tab = t; shell('<div class="hint">טוען…</div>');
+  try { await ({ home, staff: staffTab, avail, sched, clock: clockTab, settings }[t])(); } catch (e) { $("body").innerHTML = '<div class="err">' + esc(C.errText(e)) + '</div>'; }
+}
+
+// ---------- home ----------
+async function home() {
+  const tw = C.targetWeek();
+  const [av, ss, wkr] = await Promise.all([
+    sb.from("availability").select("*").eq("week_start", tw),
+    sb.from("sessions").select("*").gte("day", C.addDays(C.todayIL(), -1)).order("t_in", { ascending: false }),
+    sb.from("weeks").select("*").gte("week_start", C.thisWeek()).order("week_start")
+  ]);
+  const act = STAFF.filter(s => s.active), subs = (av.data || []).filter(a => a.off || a.flags.some(Boolean));
+  const inNow = (ss.data || []).filter(s => !s.t_out && !s.flag);
+  const pend = PROFS.filter(p => p.status === "pending");
+  const pub = (wkr.data || []).find(w => w.week_start === tw);
+  let h = '<div class="kpis">' +
+    '<div class="kpi"><div class="l">הגישו זמינות לשבוע <bdi dir="ltr">' + C.weekLabel(tw) + '</bdi></div><div class="v">' + subs.length + '/' + act.length + '</div><div class="n">' + esc(act.filter(s => !subs.find(a => a.staff_name === s.name)).map(s => s.name).join(", ") || "כולם הגישו") + '</div></div>' +
+    '<div class="kpi"><div class="l">בעבודה עכשיו</div><div class="v">' + inNow.length + '</div><div class="n">' + esc(inNow.map(s => s.staff_name + " מ-" + hhmm(s.t_in)).join(" · ") || "אף אחד") + '</div></div>' +
+    '<div class="kpi"><div class="l">סידור לשבוע הבא</div><div class="v" style="font-size:20px">' + (pub ? (pub.published ? "פורסם ✓" : "טיוטה") : "עוד לא") + '</div><div class="n">' + (pub && pub.published_at ? "פורסם " + dt(pub.published_at) : "") + '</div></div>' +
+    '<div class="kpi"><div class="l">ממתינים לאישור</div><div class="v">' + pend.length + '</div><div class="n">' + esc(pend.map(p => (p.staff_name || "ללא שם") + " " + (p.phone || "")).join(" · ")) + '</div></div></div>';
+  if (pend.length) h += '<div class="card"><b>יש עובדים שממתינים לאישור</b> <button class="b p" id="goStaff">לאישור</button></div>';
+  $("body").innerHTML = h;
+  if ($("goStaff")) $("goStaff").onclick = () => show("staff");
+}
+
+// ---------- staff ----------
+async function staffTab() {
+  await loadBase();
+  const taken = PROFS.map(p => p.staff_name).filter(Boolean);
+  const stTag = p => p.status === "active" ? '<span class="tag ok">פעיל</span>' : p.status === "pending" ? '<span class="tag wait">ממתין</span>' : '<span class="tag bad">חסום</span>';
+  let h = '<h2>חשבונות</h2><div class="card tw"><table><tr><th>שם במערכת</th><th>טלפון / אימייל</th><th>מצב</th><th>נראה לאחרונה</th><th></th></tr>';
+  PROFS.forEach(p => {
+    const opts = '<option value="">— לא משויך —</option>' + STAFF.map(s => '<option value="' + esc(s.name) + '"' + (p.staff_name === s.name ? " selected" : "") + (taken.includes(s.name) && p.staff_name !== s.name ? " disabled" : "") + '>' + esc(s.name) + '</option>').join("");
+    const self = p.id === ME.id;
+    h += '<tr><td>' + (p.staff_name ? avatar(p.staff_name) : "") + '<select class="sel" data-name="' + p.id + '"' + (self ? "" : "") + '>' + opts + '</select></td>' +
+      '<td class="num">' + esc(p.phone || "") + (p.role === "admin" ? ' <span class="tag adm">מנהל</span>' : "") + (self ? ' <span class="hint">(את/ה)</span>' : "") + '</td><td>' + stTag(p) + '</td><td class="num">' + dt(p.last_seen) + '</td><td><div class="row">' +
+      (p.status !== "active" ? '<button class="b g" data-act="active" data-id="' + p.id + '">אישור</button>' : "") +
+      (p.status !== "blocked" && !self ? '<button class="b r" data-act="blocked" data-id="' + p.id + '">חסימה</button>' : "") +
+      (!self ? '<button class="b" data-del="' + p.id + '" title="מחיקת החשבון – העובד/ת יירשם/תירשם מחדש">מחיקת חשבון</button>' : "") + '</div></td></tr>';
+  });
+  h += '</table><div class="hint" style="margin-top:10px">שכח/ה סיסמה או החליף/ה טלפון? "מחיקת חשבון", והעובד/ת נרשם/ת מחדש עם אותו שם. הזמינות והשעות נשמרות לפי השם.</div></div>';
+  h += '<h2>עובדי החנות</h2><div class="card tw"><table><tr><th>שם</th><th>צבע</th><th>צבע אות</th><th>סדר</th><th>פעיל/ה</th><th></th></tr>';
+  STAFF.forEach(s => {
+    h += '<tr data-s="' + esc(s.name) + '"><td>' + avatar(s.name) + '<b>' + esc(s.name) + '</b></td><td><input type="color" value="' + esc(s.color) + '" data-f="color"></td><td><input type="color" value="' + esc(s.fg) + '" data-f="fg"></td>' +
+      '<td><input class="sel" type="number" style="width:70px" value="' + s.sort + '" data-f="sort"></td><td><input type="checkbox"' + (s.active ? " checked" : "") + ' data-f="active"></td><td><button class="b" data-save="' + esc(s.name) + '">שמירה</button></td></tr>';
+  });
+  h += '</table><div class="row" style="margin-top:12px"><input class="sel" id="nn" placeholder="שם עובד/ת חדש/ה"><button class="b p" id="addS">הוספה</button></div>' +
+    '<div class="hint" style="margin-top:8px">עובד/ת שעזב/ה – מורידים את "פעיל/ה". ההיסטוריה נשמרת.</div></div>';
+  $("body").innerHTML = h;
+  document.querySelectorAll("[data-act]").forEach(b => b.onclick = async () => {
+    const { error } = await sb.from("profiles").update({ status: b.dataset.act }).eq("id", b.dataset.id); if (error) return fail(error);
+    toast(b.dataset.act === "active" ? "אושר" : "נחסם"); show("staff"); });
+  document.querySelectorAll("[data-name]").forEach(s => s.onchange = async () => {
+    const { error } = await sb.from("profiles").update({ staff_name: s.value || null }).eq("id", s.dataset.name); if (error) { fail(error); return show("staff"); }
+    toast("השיוך עודכן"); show("staff"); });
+  document.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    const p = PROFS.find(x => x.id === b.dataset.del);
+    if (!confirm("למחוק את החשבון של " + (p.staff_name || p.phone || "העובד") + "? העובד/ת יצטרך/תצטרך להירשם מחדש.")) return;
+    const { error } = await sb.rpc("admin_delete_user", { p_id: b.dataset.del }); if (error) return fail(error); toast("החשבון נמחק"); show("staff"); });
+  document.querySelectorAll("[data-save]").forEach(b => b.onclick = async () => {
+    const tr = b.closest("tr"), v = {}; tr.querySelectorAll("[data-f]").forEach(i => v[i.dataset.f] = i.type === "checkbox" ? i.checked : i.type === "number" ? +i.value : i.value);
+    const { error } = await sb.from("staff").update(v).eq("name", b.dataset.save); if (error) return fail(error); toast("נשמר"); show("staff"); });
+  $("addS").onclick = async () => {
+    const n = $("nn").value.trim(); if (!n) return;
+    const { error } = await sb.from("staff").insert({ name: n, sort: STAFF.length + 1 }); if (error) return fail(error); toast("נוסף"); show("staff"); };
+}
+
+// ---------- availability ----------
+function wkBar(id) { return '<div class="wkbar"><button class="b" id="' + id + 'P">→</button><b>שבוע ' + C.weekLabel(wk) + '</b><button class="b" id="' + id + 'N">←</button>' + (wk !== C.targetWeek() ? '<button class="b" id="' + id + 'T">שבוע הבא</button>' : "") + '</div>'; }
+function wkBind(id, fn) { $(id + "P").onclick = () => { wk = C.addDays(wk, -7); fn(); }; $(id + "N").onclick = () => { wk = C.addDays(wk, 7); fn(); }; if ($(id + "T")) $(id + "T").onclick = () => { wk = C.targetWeek(); fn(); }; }
+async function loadAv() { const { data } = await sb.from("availability").select("*").eq("week_start", wk); AV = {}; (data || []).forEach(a => AV[a.staff_name] = a); }
+async function avail() {
+  await loadAv();
+  const act = STAFF.filter(s => s.active || AV[s.name]);
+  let h = wkBar("aw") + '<div class="card tw"><table class="grid"><tr><th>משמרת</th>' + act.map(s => '<th>' + avatar(s.name) + esc(s.name) + '</th>').join("") + '</tr>';
+  h += '<tr><td><b>הוגש</b></td>' + act.map(s => '<td class="c num">' + (AV[s.name] ? dt(AV[s.name].updated_at) : '<span class="tag wait">לא הוגש</span>') + '</td>').join("") + '</tr>';
+  h += '<tr><td>לא עובד/ת השבוע</td>' + act.map(s => '<td class="c">' + (AV[s.name] && AV[s.name].off ? '<span class="offrow">✕</span>' : "") + '</td>').join("") + '</tr>';
+  for (let i = 0; i < 11; i++) h += '<tr><td>' + esc(C.shiftLabel(wk, i)) + '</td>' + act.map(s => { const a = AV[s.name]; return '<td class="c">' + (a && !a.off && a.flags[i] ? '<span class="yes">✔</span>' : '<span class="no">·</span>') + '</td>'; }).join("") + '</tr>';
+  h += '<tr><td>הערות</td>' + act.map(s => '<td>' + esc(AV[s.name] ? AV[s.name].note : "") + '</td>').join("") + '</tr></table></div>';
+  $("body").innerHTML = h; wkBind("aw", avail);
+}
+
+// ---------- schedule ----------
+function avOk(n, i) { const a = AV[n]; return !!(a && !a.off && a.flags[i]); }
+async function sched() {
+  await loadAv();
+  const { data } = await sb.from("weeks").select("*").eq("week_start", wk).maybeSingle();
+  WEEK = data; draft = (data && data.final) ? JSON.parse(JSON.stringify(data.final)) : [0, 1, 2, 3, 4, 5].map(d => ({ d, am: [], pm: [] }));
+  renderSched();
+}
+function renderSched() {
+  const act = STAFF.filter(s => s.active);
+  const hrs = {}; draft.forEach(r => [...r.am, ...r.pm].forEach(n => hrs[n] = (hrs[n] || 0) + 5));
+  let h = wkBar("sw") + '<div class="card"><div class="row" style="justify-content:space-between"><div><b>' + (WEEK ? (WEEK.published ? "פורסם לעובדים ✓ " + dt(WEEK.published_at) : "טיוטה (העובדים לא רואים)") : "עוד לא נשמר") + '</b></div>' +
+    '<div class="row"><button class="b" id="sv">שמירת טיוטה</button>' + (WEEK && WEEK.published ? '<button class="b r" id="unp">הסתרה מהעובדים</button>' : '<button class="b g" id="pub">פרסום לעובדים</button>') + '</div></div>' +
+    '<div class="hint" style="margin-top:8px">לוחצים על שם כדי לשבץ. מסגרת ירוקה מקווקוות = סימן/ה שיכול/ה; אדום = שובץ/ה בלי שסימן/ה. בוקר 09–14 עובד/ת אחד/ת (אחראי/ת: אמיר או תלמה) · צהריים 14–19 ושישי שניים.</div></div>';
+  h += '<div class="card tw"><table class="sched"><tr><th>יום</th><th>☀️ בוקר 09–14</th><th>🌇 צהריים 14–19</th></tr>';
+  draft.forEach((r, k) => {
+    const cell = (part, idx) => '<div class="chips">' + act.map(s => { const on = r[part].includes(s.name), ok = avOk(s.name, idx);
+      return '<button class="chip' + (on ? " on" : "") + (ok && !on ? " av-ok" : "") + (on && !ok ? " warn" : "") + '" style="' + (on ? "background:" + s.color + ";color:" + s.fg : "") + '" data-k="' + k + '" data-part="' + part + '" data-n="' + esc(s.name) + '">' + esc(s.name) + '</button>'; }).join("") + '</div>';
+    h += '<tr><td><b>' + C.DAYS[r.d] + '</b><div class="hint">' + C.ddmm(C.addDays(wk, r.d)) + '</div></td><td>' + cell("am", r.d * 2) + '</td><td>' + (r.d < 5 ? cell("pm", r.d * 2 + 1) : '<span class="hint">—</span>') + '</td></tr>';
+  });
+  h += '</table></div><div class="card"><b>שעות מתוכננות</b><div class="row" style="margin-top:8px">' + act.map(s => avatar(s.name) + esc(s.name) + ": " + (hrs[s.name] || 0) + " ש׳").join(" &nbsp; ") + '</div></div>';
+  $("body").innerHTML = h; wkBind("sw", sched);
+  document.querySelectorAll(".chip").forEach(b => b.onclick = () => { const r = draft[+b.dataset.k], a = r[b.dataset.part], n = b.dataset.n; const i = a.indexOf(n); if (i < 0) a.push(n); else a.splice(i, 1); renderSched(); });
+  const save = async pub => {
+    const row = { week_start: wk, final: draft, updated_at: new Date().toISOString() };
+    if (pub !== undefined) { row.published = pub; row.published_at = pub ? new Date().toISOString() : null; }
+    const { error } = await sb.from("weeks").upsert(row, { onConflict: "week_start" }); if (error) return fail(error);
+    toast(pub === true ? "פורסם לעובדים" : pub === false ? "הוסתר מהעובדים" : "נשמר"); sched();
+  };
+  $("sv").onclick = () => save();
+  if ($("pub")) $("pub").onclick = () => { const empty = draft.some(r => !r.am.length || (r.d < 5 && !r.pm.length)); if (empty && !confirm("יש משמרות לא מאוישות. לפרסם בכל זאת?")) return; save(true); };
+  if ($("unp")) $("unp").onclick = () => save(false);
+}
+
+// ---------- clock ----------
+async function clockTab() {
+  const from = month + "-01", to = C.addDays(month + "-28", 7).slice(0, 7) + "-01";
+  const [ss, pr] = await Promise.all([
+    sb.from("sessions").select("*").gte("day", from).lt("day", to).order("t_in", { ascending: false }),
+    sb.from("punches").select("*").gte("at", C.addDays(C.todayIL(), -1) + "T00:00:00+03:00").order("at", { ascending: false })
+  ]);
+  await loadBase();
+  const S = ss.data || [], tot = {};
+  S.forEach(s => { if (s.hours != null) tot[s.staff_name] = (tot[s.staff_name] || 0) + Number(s.hours); });
+  const modeOf = n => { const p = PROFS.find(x => x.staff_name === n); if (!p) return null; return p.clock_mode === "remote" && p.clock_mode_date !== C.todayIL() ? "store" : p.clock_mode; };
+  let h = '<h2>מצב השעון לכל עובד</h2><div class="card tw"><table><tr><th>עובד/ת</th><th>מצב</th></tr>';
+  STAFF.filter(s => s.active).forEach(s => { const m = modeOf(s.name);
+    h += '<tr><td>' + avatar(s.name) + esc(s.name) + '</td><td>' + (m ? '<div class="mode">' + [["store", "רק בחנות"], ["remote", "מחוץ לחנות היום"], ["off", "כבוי"]].map(x => '<button data-mode="' + x[0] + '" data-n="' + esc(s.name) + '" class="' + (m === x[0] ? "on" : "") + '">' + x[1] + '</button>').join("") + '</div>' : '<span class="hint">אין חשבון</span>') + '</td></tr>'; });
+  h += '</table><div class="hint" style="margin-top:8px">"מחוץ לחנות היום" חוזר לבד ל"רק בחנות" בחצות.</div></div>';
+  h += '<div class="wkbar"><button class="b" id="mP">→</button><b>' + month.slice(5) + "/" + month.slice(0, 4) + '</b><button class="b" id="mN">←</button><button class="b" id="csv">הורדת CSV</button></div>';
+  h += '<div class="kpis">' + STAFF.filter(s => s.active || tot[s.name]).map(s => '<div class="kpi"><div class="l">' + avatar(s.name) + esc(s.name) + '</div><div class="v num">' + (tot[s.name] || 0).toFixed(2) + '</div><div class="n">שעות החודש</div></div>').join("") + '</div>';
+  h += '<div class="card tw"><table><tr><th>תאריך</th><th>עובד/ת</th><th>כניסה</th><th>יציאה</th><th>שעות</th><th>הערה</th></tr>' +
+    (S.map(s => '<tr><td class="num">' + C.ddmm(s.day) + '</td><td>' + esc(s.staff_name) + '</td><td class="num">' + hhmm(s.t_in) + '</td><td class="num">' + (s.t_out ? hhmm(s.t_out) : "—") + '</td><td class="num">' + (s.hours != null ? Number(s.hours).toFixed(2) : "") + '</td><td>' + (s.flag ? '<span class="tag bad">' + esc(s.flag) + '</span>' : "") + (s.remote ? ' <span class="tag">מחוץ לחנות</span>' : "") + '</td></tr>').join("") || '<tr><td colspan="6" class="hint">אין משמרות בחודש הזה</td></tr>') + '</table></div>';
+  h += '<h2>החתמות אחרונות ותיקון ידני</h2><div class="card"><div class="row"><select class="sel" id="pn">' + STAFF.filter(s => s.active).map(s => '<option>' + esc(s.name) + '</option>').join("") + '</select><select class="sel" id="pa"><option value="in">כניסה</option><option value="out">יציאה</option></select>' +
+    '<input class="sel" type="datetime-local" id="pt"><input class="sel" id="pnote" placeholder="הערה (למשל: שכח להחתים)"><button class="b p" id="padd">הוספת החתמה</button></div>' +
+    '<div class="tw" style="margin-top:10px"><table><tr><th>זמן</th><th>עובד/ת</th><th>פעולה</th><th>מרחק</th><th>הערה</th><th></th></tr>' +
+    ((pr.data || []).map(p => '<tr><td class="num">' + dt(p.at) + '</td><td>' + esc(p.staff_name) + '</td><td>' + (p.action === "in" ? "כניסה" : "יציאה") + '</td><td class="num">' + (p.dist != null ? p.dist + " מ׳" : "") + '</td><td>' + esc((p.by_admin ? "ידני · " : "") + (p.note || "")) + (p.remote ? " מחוץ לחנות" : "") + '</td><td><button class="b r" data-pdel="' + p.id + '">מחיקה</button></td></tr>').join("") || '<tr><td colspan="6" class="hint">אין החתמות מאתמול</td></tr>') + '</table></div></div>';
+  $("body").innerHTML = h;
+  document.querySelectorAll("[data-mode]").forEach(b => b.onclick = async () => {
+    const { error } = await sb.from("profiles").update({ clock_mode: b.dataset.mode, clock_mode_date: C.todayIL() }).eq("staff_name", b.dataset.n); if (error) return fail(error); toast("עודכן"); show("clock"); });
+  $("mP").onclick = () => { month = C.addDays(month + "-01", -1).slice(0, 7); show("clock"); };
+  $("mN").onclick = () => { month = C.addDays(month + "-28", 7).slice(0, 7); show("clock"); };
+  $("csv").onclick = () => {
+    const rows = [["תאריך", "עובד", "כניסה", "יציאה", "שעות", "הערה"]].concat(S.slice().reverse().map(s => [C.ddmm(s.day) + "/" + s.day.slice(0, 4), s.staff_name, hhmm(s.t_in), s.t_out ? hhmm(s.t_out) : "", s.hours != null ? s.hours : "", (s.flag || "") + (s.remote ? " מחוץ לחנות" : "")]));
+    const txt = "﻿" + rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(",")).join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt], { type: "text/csv" })); a.download = "שעות-" + month + ".csv"; a.click(); };
+  $("padd").onclick = async () => {
+    const t = $("pt").value; if (!t) return toast("בחר/י תאריך ושעה");
+    const at = new Date(t).toISOString();
+    const { error } = await sb.from("punches").insert({ staff_name: $("pn").value, action: $("pa").value, at, by_admin: true, note: $("pnote").value || null }); if (error) return fail(error); toast("נוסף"); show("clock"); };
+  document.querySelectorAll("[data-pdel]").forEach(b => b.onclick = async () => { if (!confirm("למחוק את ההחתמה?")) return; const { error } = await sb.from("punches").delete().eq("id", b.dataset.pdel); if (error) return fail(error); toast("נמחק"); show("clock"); });
+}
+
+// ---------- settings ----------
+async function settings() {
+  const { data } = await sb.from("settings").select("*");
+  const S = {}; (data || []).forEach(r => S[r.k] = r.v);
+  const st = S.store || {};
+  $("body").innerHTML = '<h2>החנות</h2><div class="card"><div class="row"><label>קו רוחב <input class="sel" id="la" value="' + esc(st.lat) + '" dir="ltr"></label><label>קו אורך <input class="sel" id="lo2" value="' + esc(st.lon) + '" dir="ltr"></label>' +
+    '<label>מרחק מקסימלי (מ׳) <input class="sel" type="number" id="md" value="' + esc(st.max_dist) + '" style="width:90px"></label><label>דיוק GPS מקסימלי (מ׳) <input class="sel" type="number" id="ma" value="' + esc(st.max_acc) + '" style="width:90px"></label><button class="b p" id="ss">שמירה</button></div></div>' +
+    '<h2>חיבור ל-Home Assistant</h2><div class="card hint">מפתח לדוח הנוכחות וההגשות: <code>' + esc(S.ha_token || "") + '</code><br>משמש את Home Assistant ואת משימת הסידור השבועית. לא לשתף.</div>';
+  $("ss").onclick = async () => {
+    const v = { ...st, lat: +$("la").value, lon: +$("lo2").value, max_dist: +$("md").value, max_acc: +$("ma").value };
+    const { error } = await sb.from("settings").update({ v }).eq("k", "store"); if (error) return fail(error); toast("נשמר"); };
+}
+boot();
+})();
+</script>
+</body>
+</html>

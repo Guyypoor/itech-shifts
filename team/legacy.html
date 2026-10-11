@@ -1,0 +1,150 @@
+<!doctype html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>משמרות אייטק</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="משמרות">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#EEF1F7">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap">
+<style>
+:root{--frost:#EEF1F7;--paper:#FFFFFF;--ink:#15163A;--mut:#6B6F8E;--hair:#DCE1EC;--volt:#3355FF;--go:#14B87A;--coral:#F0505A;--sun:#FFB020}
+html,body{margin:0;height:100%;background:var(--frost);font-family:Rubik,system-ui,-apple-system,Arial,sans-serif}
+/* own top strip, so the clock pill never covers the app's buttons (the app's 'name / switch' button sits top-left) */
+#topbar{position:fixed;top:0;left:0;right:0;z-index:9;height:calc(54px + env(safe-area-inset-top));box-sizing:border-box;padding-top:env(safe-area-inset-top);background:var(--frost);border-bottom:1px solid var(--hair)}
+iframe{position:fixed;left:0;right:0;bottom:0;top:calc(54px + env(safe-area-inset-top));width:100%;height:calc(100% - 54px - env(safe-area-inset-top));border:0;box-sizing:border-box;background:var(--frost)}
+/* clock pill – inside the top strip */
+#clockPill{position:fixed;z-index:10;top:calc(9px + env(safe-area-inset-top));left:12px;display:flex;align-items:center;gap:7px;
+  background:var(--paper);color:var(--ink);border:1px solid var(--hair);border-radius:999px;padding:8px 13px 8px 11px;
+  font:600 14px Rubik,sans-serif;box-shadow:0 4px 14px rgba(21,22,58,.10);cursor:pointer}
+#clockPill .dot{width:9px;height:9px;border-radius:50%;background:var(--mut)}
+#clockPill.in .dot{background:var(--go);box-shadow:0 0 0 4px rgba(20,184,122,.18)}
+#clockPill.in{border-color:rgba(20,184,122,.5)}
+/* sheet */
+#sheetBg{position:fixed;inset:0;z-index:20;background:rgba(21,22,58,.38);display:none}
+#sheet{position:fixed;z-index:21;left:0;right:0;bottom:0;background:var(--paper);border-radius:22px 22px 0 0;
+  padding:10px 20px calc(22px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;transform:translateY(105%);transition:transform .25s ease;color:var(--ink)}
+#sheet.open{transform:none}
+#sheet .grab{width:42px;height:5px;border-radius:9px;background:var(--hair);margin:0 auto 14px}
+#sheet h2{margin:0;font:800 22px Rubik,sans-serif;letter-spacing:-.2px}
+#sheet .sub{color:var(--mut);font-size:14px;margin:4px 0 18px}
+.who{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
+.who select{font:500 16px Rubik,sans-serif;color:var(--ink);background:var(--frost);border:1px solid var(--hair);border-radius:12px;padding:10px 12px;min-width:150px}
+.stat{background:var(--frost);border-radius:16px;padding:16px;display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.stat .big{font:800 30px Rubik,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.stat .lbl{color:var(--mut);font-size:13px}
+.ring{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--paper);border:2px solid var(--hair);font-size:22px;flex:0 0 auto}
+.in .ring{border-color:var(--go)}
+.punch{width:100%;border:0;border-radius:16px;padding:18px;font:700 19px Rubik,sans-serif;color:#fff;background:var(--go);cursor:pointer}
+.punch.out{background:var(--coral)}
+.punch:disabled{opacity:.55;cursor:default}
+.msg{min-height:22px;margin-top:12px;font-size:14px;line-height:1.45}
+.msg.err{color:var(--coral);font-weight:600}.msg.ok{color:var(--go);font-weight:600}
+.note{color:var(--mut);font-size:12.5px;margin-top:10px;line-height:1.5}
+.close{position:absolute;top:12px;left:14px;background:none;border:0;font-size:22px;color:var(--mut);cursor:pointer;padding:6px}
+</style>
+</head>
+<body>
+<iframe src="https://script.google.com/macros/s/AKfycbzj6HBcckXy87BxU_2MvAE4O7vjdgnQ6sgA2qoTrwquGUVDWVTfyVO5q3tgcUw9UCJ7vg/exec" title="משמרות אייטק" allow="clipboard-write"></iframe>
+
+<div id="topbar"></div>
+<button id="clockPill" type="button" aria-haspopup="dialog"><span class="dot"></span><span id="pillTxt">נוכחות</span></button>
+<div id="sheetBg"></div>
+<section id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="grab"></div>
+  <button class="close" id="closeBtn" type="button" aria-label="סגור">✕</button>
+  <h2 id="sheetTitle">שעון נוכחות</h2>
+  <div class="sub" id="sub">מחתימים כניסה ויציאה רק מתוך החנות.</div>
+  <div class="who"><label for="who" style="font-weight:600">העובד/ת</label><select id="who"><option value="">בחר/י שם…</option></select></div>
+  <div class="stat" id="stat"><div class="ring" id="ring">⏱</div><div><div class="big" id="big">—</div><div class="lbl" id="lbl">בחר/י שם כדי להתחיל</div></div></div>
+  <button class="punch" id="punch" type="button" disabled>החתמת כניסה</button>
+  <div class="msg" id="msg" role="status"></div>
+  <div class="note">בלחיצה, הטלפון בודק את המיקום שלך פעם אחת ושולח אותו לבדיקה שאת/ה בחנות. השעה נרשמת לפי השרת. נשמר רק המרחק מהחנות, לא המיקום עצמו.</div>
+</section>
+
+<script>
+(() => {
+"use strict";
+const API="https://script.google.com/macros/s/AKfycbzj6HBcckXy87BxU_2MvAE4O7vjdgnQ6sgA2qoTrwquGUVDWVTfyVO5q3tgcUw9UCJ7vg/exec";
+const $=id=>document.getElementById(id);
+const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+let device=ls.get("att-device"); if(!device){ device="d"+Math.random().toString(36).slice(2,10); ls.set("att-device",device); }
+let state={name:ls.get("att-name")||"",in:false,since:null}, timer=null, busy=false;
+
+async function api(body){
+  const r=await fetch(API,{method:"POST",body:JSON.stringify(body)});
+  return r.json();
+}
+function hhmm(iso){ return new Date(iso).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"}); }
+function dur(ms){ const m=Math.max(0,Math.floor(ms/60000)); return Math.floor(m/60)+":"+String(m%60).padStart(2,"0"); }
+function render(){
+  const s=$("sheet"), pill=$("clockPill");
+  pill.classList.toggle("in",!!state.in); s.classList.toggle("in",!!state.in);
+  $("pillTxt").textContent=state.in?("בעבודה "+dur(Date.now()-Date.parse(state.since))):"נוכחות";
+  const p=$("punch");
+  if(!state.name){ $("big").textContent="—"; $("lbl").textContent="בחר/י שם כדי להתחיל"; p.disabled=true; p.textContent="החתמת כניסה"; p.classList.remove("out"); return; }
+  if(state.mode==="off"){ $("big").textContent="השעון כבוי"; $("lbl").textContent="ההחתמה סגורה כרגע. לפרטים פנה/י לגיא."; p.textContent="השעון כבוי"; p.classList.remove("out"); p.disabled=true; $("sub").textContent="מחתימים כניסה ויציאה רק מתוך החנות."; return; }
+  $("sub").textContent=state.mode==="remote"?"היום גיא אישר לך להחתים גם מחוץ לחנות.":"מחתימים כניסה ויציאה רק מתוך החנות.";
+  if(state.in){ $("big").textContent=dur(Date.now()-Date.parse(state.since)); $("lbl").textContent="בעבודה מאז "+hhmm(state.since); p.textContent="החתמת יציאה"; p.classList.add("out"); }
+  else { $("big").textContent="לא בעבודה"; $("lbl").textContent="החתם/י כניסה כשהגעת לחנות"; p.textContent="החתמת כניסה"; p.classList.remove("out"); }
+  p.disabled=busy;
+}
+function tick(){ clearInterval(timer); timer=setInterval(()=>{ if(state.in) render(); },30000); }
+function msg(t,cls){ const m=$("msg"); m.textContent=t||""; m.className="msg"+(cls?" "+cls:""); }
+
+async function loadState(){
+  if(!state.name) return render();
+  try{ const r=await api({action:"state",name:state.name,key:ls.get("att-key")||""}); if(r.ok){ state.in=r.in; state.since=r.since; state.mode=r.mode||"store"; if(r.key){ ls.set("att-key",r.key); $("who").disabled=true; } } else if(r.code==="locked"){ msg(r.error,"err"); state={name:"",in:false,since:null}; ls.set("att-name",""); ls.set("att-key",""); $("who").value=""; $("who").disabled=false; } else msg(r.error,"err"); }
+  catch(e){ msg("אין חיבור לשרת. נסה/י שוב.","err"); }
+  render();
+}
+function getPos(){
+  return new Promise((res,rej)=>{
+    if(!("geolocation" in navigator)) return rej({code:9});
+    let best=null, done=false;
+    const finish=()=>{ if(done) return; done=true; navigator.geolocation.clearWatch(w); best?res(best):rej({code:3}); };
+    const w=navigator.geolocation.watchPosition(p=>{ if(!best||p.coords.accuracy<best.coords.accuracy) best=p; if(best.coords.accuracy<=40) finish(); },
+      err=>{ if(err.code===1){ done=true; navigator.geolocation.clearWatch(w); rej(err); } },
+      {enableHighAccuracy:true,maximumAge:0,timeout:15000});
+    setTimeout(finish,12000);
+  });
+}
+async function punch(){
+  if(!state.name||busy) return;
+  busy=true; render(); msg("בודק מיקום…");
+  try{
+    let pos;
+    try{ pos=await getPos(); }
+    catch(e){ if(state.mode==="remote"){ pos={coords:{latitude:undefined,longitude:undefined,accuracy:undefined}}; } else msg(e&&e.code===1?"לא אישרת גישה למיקום. כדי להחתים צריך לאשר מיקום לאתר הזה בהגדרות הטלפון.":"לא הצלחתי לקבל מיקום. בדוק/י שהמיקום בטלפון דלוק ונסה/י שוב.","err"); if(!pos) return; }
+    msg("שולח…");
+    const action=state.in?"out":"in";
+    const r=await api({action,name:state.name,key:ls.get("att-key")||"",lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy,device});
+    if(r.ok){ state.in=r.in; state.since=r.since; msg(r.msg,"ok"); try{ navigator.vibrate&&navigator.vibrate(60); }catch(e){} }
+    else { if(r.state){ state.in=r.state.in; state.since=r.state.since; state.mode=r.state.mode||state.mode; } msg(r.error,"err"); }
+  }catch(e){ msg("אין חיבור לשרת. נסה/י שוב.","err"); }
+  finally{ busy=false; render(); }
+}
+function open(){ $("sheetBg").style.display="block"; requestAnimationFrame(()=>$("sheet").classList.add("open")); msg(""); loadState(); }
+function close(){ $("sheet").classList.remove("open"); setTimeout(()=>{$("sheetBg").style.display="none";},250); }
+
+$("clockPill").onclick=open; $("closeBtn").onclick=close; $("sheetBg").onclick=close; $("punch").onclick=punch;
+$("who").onchange=e=>{ if(ls.get("att-key")){ e.target.value=state.name; msg("הטלפון הזה כבר משויך ל"+state.name+". להחלפה פנה/י לגיא.","err"); return; } state={name:e.target.value,in:false,since:null}; ls.set("att-name",state.name); msg(""); loadState(); };
+addEventListener("keydown",e=>{ if(e.key==="Escape") close(); });
+addEventListener("visibilitychange",()=>{ if(!document.hidden) loadState(); });
+
+(async()=>{
+  try{ const r=await api({action:"names"}); if(r.ok){ const sel=$("who"); r.names.forEach(n=>{ const o=document.createElement("option"); o.value=n; o.textContent=n; sel.append(o); }); if(state.name&&r.names.includes(state.name)) { sel.value=state.name; if(ls.get("att-key")) sel.disabled=true; } else { state.name=""; } } }catch(e){}
+  await loadState(); tick();
+})();
+})();
+</script>
+</body>
+</html>
