@@ -17,6 +17,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Assistant:wght@400;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="cloud.js"></script>
 <style>
 /* Layout: one narrow column, built for a phone on the dashboard. Road-sign green for actions, amber marks the next stop. */
 :root{
@@ -94,6 +96,19 @@ ol.stops{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;g
 .thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .thumbs img{width:72px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line);max-width:100%}
 @media (prefers-reduced-motion:no-preference){.stop{transition:opacity .2s,border-color .2s}}
+#gate{position:fixed;inset:0;z-index:50;background:var(--bg);overflow:auto;padding:24px 16px}
+#gate .card{max-width:420px;margin:6vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px}
+#gate h2{font:800 1.4rem var(--font-display);margin:0 0 6px}
+#gate p{color:var(--muted);margin:6px 0 14px;line-height:1.5}
+#gate form{display:flex;flex-direction:column;gap:10px}
+#gate .err{color:var(--danger);font-weight:600;min-height:1.2em}
+#gate .swap{background:none;border:0;color:var(--sign);font:700 .95rem var(--font-body);cursor:pointer;margin-top:10px;padding:6px 0}
+.logo{width:56px;height:56px;border-radius:14px;display:block;margin-bottom:10px}
+.who{display:flex;gap:6px;align-items:center;font-size:.85rem;opacity:.95}
+.who button,.who a{background:rgba(255,255,255,.18);color:var(--sign-ink);border:0;border-radius:8px;padding:5px 9px;font:700 .8rem var(--font-body);cursor:pointer;text-decoration:none}
+.shiftbtn{border:2px solid var(--sign-ink)!important;background:transparent!important}
+.shiftbtn.on{background:var(--amber)!important;color:#1C1404!important;border-color:var(--amber)!important}
+input[type=password]{width:100%;font:400 1rem var(--font-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .chip{font:700 .78rem var(--font-body);border-radius:6px;padding:1px 8px;background:var(--bg);border:1px solid var(--line);color:var(--ink)}
 .chip.urgent{background:var(--danger);border-color:var(--danger);color:#fff}
 .chip.eta{background:var(--amber-soft);border-color:var(--amber)}
@@ -112,11 +127,18 @@ input[type=time]{font:400 1rem var(--font-body);color:var(--ink);background:var(
 </head>
 <body>
 
+<div id="gate" hidden><div class="card" id="gateCard"></div></div>
 <div class="wrap">
   <header class="top">
     <div>
       <h1>מסלול שליח</h1>
       <div class="date" id="today"></div>
+    </div>
+    <div class="who" id="who" hidden>
+      <button type="button" id="shiftBtn" class="shiftbtn">התחל משמרת</button>
+      <span id="whoName"></span>
+      <a id="adminLink" href="admin.html" hidden>פאנל מנהל</a>
+      <button type="button" id="logoutBtn">יציאה</button>
     </div>
     <div class="progress" aria-live="polite"><span id="progTxt">0/0 נמסרו</span><span class="bar"><i id="progBar"></i></span></div>
   </header>
@@ -429,7 +451,7 @@ function addStops(items){
       urgent:!!(it.urgent||fl.urgent), after:it.after||fl.after||"", before:it.before||fl.before||""};
     if(seen.has(full(st))) continue; seen.add(full(st)); state.stops.push(st); added++;
   }
-  save(); render();
+  save(); render(); if(ME) pull();
   const skipped=items.length-added;
   setStatus("נוספו "+added+" עצירות"+(skipped?" ("+skipped+" כפולות דולגו)":"")+".");
 }
@@ -726,6 +748,7 @@ async function orderGeo(){
     if(lost.length) msg+=" "+lost.length+" לא נמצאו במפה והועברו לסוף – בדוק אותן.";
     setStatus(msg);
     if(!$("#mapBox").hidden) drawMap(true);
+    cloudPushOrder();
     return r;
   }catch(e){ setStatus("החישוב נכשל. נסה שוב."); }
   finally{ btn.disabled=false; }
@@ -1085,13 +1108,13 @@ function askCourier(){
   const n=prompt("מה השם שלך? (יופיע בדיווח למנהל)"); if(n&&n.trim()){ state.courier=n.trim(); save(); }
 }
 function markDone(s,on){
-  if(on){ askCourier(); s.done=true; s.failed=false; s.reason=""; s.doneAt=Date.now(); track(s,"נמסר",""); recomputeEta(); }
-  else { const was=s.failed?"ביטול 'לא נמסר'":"ביטול מסירה"; s.done=false; s.failed=false; s.reason=""; s.doneAt=null; track(s,was,""); }
+  if(on){ askCourier(); s.done=true; s.failed=false; s.reason=""; s.doneAt=Date.now(); track(s,"נמסר",""); recomputeEta(); cloudPatch(s,{status:"delivered",reason:"",done_at:new Date().toISOString()}); }
+  else { const was=s.failed?"ביטול 'לא נמסר'":"ביטול מסירה"; s.done=false; s.failed=false; s.reason=""; s.doneAt=null; track(s,was,""); cloudPatch(s,{status:"assigned",reason:"",done_at:null}); }
   save(); render(); if(!$("#mapBox").hidden) drawMap(false);
 }
 function markFailed(s){
   const r=prompt("למה לא נמסר? (למשל: לא בבית, כתובת שגויה, לא עונה)",""); if(r===null) return;
-  askCourier(); s.done=true; s.failed=true; s.reason=r.trim(); s.doneAt=Date.now(); track(s,"לא נמסר",s.reason); recomputeEta(); save(); render();
+  askCourier(); s.done=true; s.failed=true; s.reason=r.trim(); s.doneAt=Date.now(); track(s,"לא נמסר",s.reason); recomputeEta(); cloudPatch(s,{status:"failed",reason:s.reason,done_at:new Date().toISOString()}); save(); render();
 }
 function move(i,d){ const j=i+d; if(j<0||j>=state.stops.length) return; const a=state.stops; [a[i],a[j]]=[a[j],a[i]]; save(); render(); }
 function editStop(li,s){
@@ -1104,9 +1127,9 @@ function editStop(li,s){
   const box=el("div",{class:"edit"},el("div",{class:"row"},l1,l2),el("div",{class:"row"},l3,l4,l5),
     el("div",{class:"row",style:"align-items:end"},el("label",{class:"chk",for:uId},iu," דחוף – בהתחלה"),el("label",{class:"f",for:aId},"לא לפני",ia),el("label",{class:"f",for:bId},"עד השעה",ib)),
     el("div",{class:"actions"},
-      el("button",{class:"btn primary",type:"button",text:"שמור",onclick:()=>{ if(!i1.value.trim()) return; Object.assign(s,{addr:i1.value.trim(),city:i2.value.trim(),name:i3.value.trim(),phone:i4.value.trim(),note:i5.value.trim(),urgent:iu.checked,after:ia.value||"",before:ib.value||""}); if(s.gk!==full(s)){ s.geo=undefined; s.lat=null; s.lon=null; s.eta=null; } save(); render(); }}),
+      el("button",{class:"btn primary",type:"button",text:"שמור",onclick:()=>{ if(!i1.value.trim()) return; Object.assign(s,{addr:i1.value.trim(),city:i2.value.trim(),name:i3.value.trim(),phone:i4.value.trim(),note:i5.value.trim(),urgent:iu.checked,after:ia.value||"",before:ib.value||""}); if(s.gk!==full(s)){ s.geo=undefined; s.lat=null; s.lon=null; s.eta=null; } cloudPatch(s,{addr:s.addr,city:s.city,cust_name:s.name,note:s.note,urgent:!!s.urgent,after_t:s.after,before_t:s.before,lat:s.lat??null,lon:s.lon??null}); save(); render(); }}),
       el("button",{class:"btn ghost",type:"button",text:"ביטול",onclick:()=>render()}),
-      el("button",{class:"btn danger",type:"button",text:"מחק עצירה",onclick:()=>{ state.stops=state.stops.filter(x=>x.id!==s.id); save(); render(); setStatus("העצירה נמחקה."); }})
+      el("button",{class:"btn danger",type:"button",text:"מחק עצירה",onclick:()=>{ if(ME&&s.rid&&!s.mine){ setStatus("את המשלוח הזה שיבץ המנהל – רק הוא יכול להסיר אותו."); return; } if(ME&&s.rid) cloudPatch(s,{status:"cancelled"}); state.stops=state.stops.filter(x=>x.id!==s.id); save(); render(); setStatus("העצירה נמחקה."); }})
     ));
   li.append(box); i1.focus();
 }
@@ -1152,9 +1175,175 @@ $("#clearAll").addEventListener("click",e=>{
   clearTimeout(armed); armed=null; b.textContent="נקה הכל";
   state.stops=[]; state.example=false; save(); render(); $("#gmapsLinks").hidden=true; setStatus("המסלול נוקה.");
 });
+/* ================= cloud (server) mode ================= */
+const C=window.Cloud; let ME=null, chan=null, pullTimer=null, geoWatch=null, lastSent=null, wakeLock=null;
+function gate(html,bind){ $("#gate").hidden=false; $("#gateCard").innerHTML=html; if(bind) bind(); }
+function closeGate(){ $("#gate").hidden=true; }
+const LOGO='<img class="logo" src="icon-192.png" alt="">';
+function showLogin(msg){
+  gate(LOGO+`<h2>כניסה למסלול שליח</h2><p>נכנסים עם מספר הטלפון והסיסמה שבחרת בהרשמה.</p>
+  <form id="gLogin"><label class="f" for="gPhone">מספר טלפון<input type="tel" id="gPhone" autocomplete="username" required inputmode="tel"></label>
+  <label class="f" for="gPass">סיסמה<input type="password" id="gPass" autocomplete="current-password" required></label>
+  <div class="err" id="gErr">${msg||""}</div><button class="btn primary" type="submit">כניסה</button></form>
+  <button class="swap" type="button" id="gToReg">עובד חדש? הרשמה</button>`,()=>{
+    $("#gToReg").onclick=showRegister;
+    $("#gLogin").onsubmit=async e=>{ e.preventDefault(); $("#gErr").textContent="מתחבר...";
+      const { error }=await C.sb.auth.signInWithPassword({email:C.phoneEmail($("#gPhone").value),password:$("#gPass").value});
+      if(error){ $("#gErr").textContent=C.errText(error); return; } boot(); };
+  });
+}
+function showRegister(){
+  gate(LOGO+`<h2>הרשמה לעובד חדש</h2><p>אחרי ההרשמה המנהל מאשר אותך, ואז אפשר להתחיל לעבוד.</p>
+  <form id="gReg"><label class="f" for="rName">שם מלא<input type="text" id="rName" required autocomplete="name"></label>
+  <label class="f" for="rPhone">מספר טלפון<input type="tel" id="rPhone" required inputmode="tel" autocomplete="username"></label>
+  <label class="f" for="rPass">בחר סיסמה (לפחות 6 תווים)<input type="password" id="rPass" required minlength="6" autocomplete="new-password"></label>
+  <div class="err" id="gErr"></div><button class="btn primary" type="submit">הרשמה</button></form>
+  <button class="swap" type="button" id="gToLogin">כבר רשום? כניסה</button>`,()=>{
+    $("#gToLogin").onclick=()=>showLogin();
+    $("#gReg").onsubmit=async e=>{ e.preventDefault();
+      const ph=C.phoneDigits($("#rPhone").value); if(!/^0\d{8,9}$/.test(ph)){ $("#gErr").textContent="מספר טלפון לא תקין."; return; }
+      $("#gErr").textContent="נרשם...";
+      const { data, error }=await C.sb.auth.signUp({email:C.phoneEmail(ph),password:$("#rPass").value,options:{data:{full_name:$("#rName").value.trim(),phone:ph}}});
+      if(error){ $("#gErr").textContent=C.errText(error); return; }
+      if(!data.session){ const r=await C.sb.auth.signInWithPassword({email:C.phoneEmail(ph),password:$("#rPass").value}); if(r.error){ $("#gErr").textContent=C.errText(r.error); return; } }
+      boot(); };
+  });
+}
+function showPending(){
+  gate(LOGO+`<h2>ממתין לאישור המנהל</h2><p>נרשמת בהצלחה. ברגע שהמנהל יאשר אותך, האפליקציה תיפתח לבד.</p>
+  <button class="btn primary" type="button" id="gRe">בדוק שוב</button> <button class="swap" type="button" id="gOut">יציאה</button>`,()=>{
+    $("#gRe").onclick=boot; $("#gOut").onclick=logout; });
+  clearTimeout(pullTimer); pullTimer=setTimeout(boot,20000);
+}
+function showBlocked(){
+  stopShift(true);
+  gate(LOGO+`<h2>אין לך הרשאה</h2><p>החשבון שלך הושבת. לפרטים פנה למנהל.</p><button class="btn ghost" type="button" id="gOut">יציאה</button>`,()=>{ $("#gOut").onclick=logout; });
+}
+function showConsent(){
+  gate(LOGO+`<h2>לפני שמתחילים</h2>
+  <p><b>מיקום בזמן משמרת:</b> כשתלחץ "התחל משמרת", האפליקציה תשלח למנהל את המיקום שלך בזמן שהיא פתוחה, כדי לנהל את המשלוחים. מחוץ למשמרת – לא נשלח מיקום.</p>
+  <p><b>דיווח מסירות:</b> כל "נמסר" / "לא נמסר" נשמר במערכת עם השעה.</p>
+  <button class="btn primary" type="button" id="gOk">הבנתי ומאשר</button> <button class="swap" type="button" id="gOut">יציאה</button>`,()=>{
+    $("#gOut").onclick=logout;
+    $("#gOk").onclick=async()=>{ await C.sb.from("profiles").update({consent_at:new Date().toISOString()}).eq("id",ME.id); boot(); };
+  });
+}
+async function logout(){ await stopShift(true); try{ await C.sb.auth.signOut(); }catch(e){} ME=null; if(chan){ C.sb.removeChannel(chan); chan=null; }
+  state={start:"",defCity:"פרדס חנה-כרכור",example:false,stops:[]}; save(); render(); showLogin(); }
+async function boot(){
+  clearTimeout(pullTimer);
+  let p=null; try{ p=await C.me(); }catch(e){ if(ME){ return; } gate(LOGO+`<h2>אין חיבור</h2><p>${C.errText(e)}</p><button class="btn primary" id="gRe" type="button">נסה שוב</button>`,()=>{$("#gRe").onclick=boot;}); return; }
+  if(!p) return showLogin();
+  if(p.status==="blocked") return showBlocked();
+  if(p.status!=="active") return showPending();
+  if(!p.consent_at && p.role!=="admin") { ME=p; return showConsent(); }
+  const first=!ME||ME.id!==p.id; ME=p; closeGate();
+  state.courier=p.full_name||state.courier; state.example=false; save();
+  $("#who").hidden=false; $("#whoName").textContent=p.full_name||""; $("#adminLink").hidden=p.role!=="admin";
+  $("#mgr").closest("section").hidden=true; $("#clearAll").hidden=true; $("#courierName").closest("label").hidden=true;
+  C.sb.from("profiles").update({last_seen:new Date().toISOString()}).eq("id",p.id).then(()=>{});
+  if(first){
+    chan=C.sb.channel("del-"+p.id).on("postgres_changes",{event:"*",schema:"public",table:"deliveries",filter:"assigned_to=eq."+p.id},()=>{ clearTimeout(pullTimer); pullTimer=setTimeout(pull,600); })
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"profiles",filter:"id=eq."+p.id},pl=>{ if(pl.new&&pl.new.status!=="active") boot(); }).subscribe();
+    setInterval(()=>{ if(ME) pull(); },60000);
+    addEventListener("visibilitychange",()=>{ if(!document.hidden&&ME){ boot(); } });
+    if(state.shift) startWatch();
+  }
+  renderShift(); await pull();
+}
+function rowToStop(r,old){
+  const s=old||{id:uid()};
+  const addrChanged=old&&(old.addr!==r.addr||(old.city||"")!==(r.city||""));
+  Object.assign(s,{rid:r.id,addr:r.addr,city:r.city||"",name:r.cust_name||"",phone:r.cust_phone||"",note:r.note||"",urgent:!!r.urgent,after:r.after_t||"",before:r.before_t||"",
+    done:r.status==="delivered"||r.status==="failed",failed:r.status==="failed",reason:r.reason||"",doneAt:r.done_at?Date.parse(r.done_at):null,mine:r.created_by===ME.id});
+  if(addrChanged){ s.lat=null; s.lon=null; s.geo=undefined; s.gk=undefined; }
+  if(s.lat==null&&r.lat!=null){ s.lat=r.lat; s.lon=r.lon; s.geo=r.geo||"street"; s.gk=full(s); }
+  return s;
+}
+let pulling=false;
+async function pull(){
+  if(!ME||pulling) return; pulling=true;
+  try{
+    await flushQ();
+    // local stops not yet on the server → insert
+    for(const s of state.stops.filter(x=>!x.rid)){
+      const { data, error }=await C.sb.from("deliveries").insert({created_by:ME.id,assigned_to:ME.id,status:s.done?(s.failed?"failed":"delivered"):"assigned",addr:s.addr,city:s.city||"",cust_name:s.name||"",cust_phone:s.phone||"",note:s.note||"",urgent:!!s.urgent,after_t:s.after||"",before_t:s.before||"",lat:s.lat??null,lon:s.lon??null,geo:s.geo||null}).select("id").single();
+      if(!error&&data){ s.rid=data.id; s.mine=true; }
+    }
+    const { data, error }=await C.sb.from("deliveries").select("*").eq("assigned_to",ME.id).eq("day",C.todayIL()).in("status",["assigned","delivered","failed"]).order("seq",{ascending:true,nullsFirst:false}).order("id");
+    if(error) throw error;
+    const byRid=new Map(state.stops.filter(s=>s.rid).map(s=>[s.rid,s]));
+    const seen=new Set(); let added=0; const kept=[];
+    for(const s of state.stops){ if(!s.rid) { kept.push(s); continue; } const r=data.find(x=>x.id===s.rid); if(r){ kept.push(rowToStop(r,s)); seen.add(r.id); } }
+    for(const r of data){ if(!seen.has(r.id)){ kept.push(rowToStop(r,null)); added++; } }
+    const removed=state.stops.filter(s=>s.rid&&!data.some(r=>r.id===s.rid)).length;
+    // open first, then done – keep the courier's order
+    state.stops=[...kept.filter(s=>!s.done),...kept.filter(s=>s.done)];
+    save(); render();
+    if(added&&!state._quiet){ setStatus("התקבלו "+added+" משלוחים חדשים מהמנהל. לחץ 'סדר מסלול קצר'."); try{ navigator.vibrate&&navigator.vibrate([200,100,200]); }catch(e){} }
+    else if(removed){ setStatus(removed+" משלוחים הוסרו מהמסלול שלך על ידי המנהל."); }
+    state._quiet=false;
+  }catch(e){ /* offline – keep local */ }
+  finally{ pulling=false; }
+}
+function qGet(){ try{ return JSON.parse(localStorage.getItem("courier-cloud-q")||"[]"); }catch(e){ return []; } }
+function qSet(q){ try{ localStorage.setItem("courier-cloud-q",JSON.stringify(q)); }catch(e){} }
+function cloudPatch(s,patch){
+  if(!ME||!s.rid) return;
+  const q=qGet(); q.push({rid:s.rid,patch}); qSet(q); flushQ();
+}
+let flushingQ=false;
+async function flushQ(){
+  if(!ME||flushingQ) return; flushingQ=true;
+  try{ let q=qGet();
+    while(q.length){ const x=q[0]; const { error }=await C.sb.from("deliveries").update(x.patch).eq("id",x.rid); if(error&&/fetch|network/i.test(error.message||"")) break; q.shift(); qSet(q); }
+  }catch(e){} finally{ flushingQ=false; }
+}
+addEventListener("online",()=>{ flushQ(); if(ME) pull(); });
+async function cloudPushOrder(){
+  if(!ME) return;
+  const open=state.stops.filter(s=>!s.done&&s.rid);
+  for(let i=0;i<open.length;i++){ const s=open[i];
+    cloudPatch(s,{seq:i+1,eta:s.eta?new Date(s.eta).toISOString():null,lat:s.lat??null,lon:s.lon??null,geo:s.geo||null}); }
+}
+/* ---- shift + live location ---- */
+function renderShift(){ const b=$("#shiftBtn"); const on=!!state.shift; b.textContent=on?"סיים משמרת":"התחל משמרת"; b.classList.toggle("on",on); }
+async function startShift(){
+  if(!ME) return;
+  if(!("geolocation" in navigator)){ setStatus("הטלפון לא תומך במיקום."); }
+  const { data, error }=await C.sb.from("shifts").insert({courier:ME.id}).select("id").single();
+  if(error){ setStatus(C.errText(error)); return; }
+  state.shift={id:data.id,started:Date.now()}; save(); renderShift(); startWatch();
+  setStatus("המשמרת התחילה. המיקום נשלח למנהל רק בזמן שהאפליקציה פתוחה – השאר אותה פתוחה ככל האפשר.");
+}
+function startWatch(){
+  if(geoWatch!=null||!("geolocation" in navigator)) return;
+  geoWatch=navigator.geolocation.watchPosition(onPos,err=>{ if(err.code===1) setStatus("לא אישרת גישה למיקום – המנהל לא יראה אותך על המפה. אפשר לאשר בהגדרות הדפדפן."); },{enableHighAccuracy:true,maximumAge:15000,timeout:30000});
+  try{ navigator.wakeLock&&navigator.wakeLock.request("screen").then(l=>wakeLock=l).catch(()=>{}); }catch(e){}
+}
+let lastPos=null;
+async function onPos(p){
+  if(!ME||!state.shift) return;
+  const c={lat:p.coords.latitude,lon:p.coords.longitude}; lastPos=c;
+  const now=Date.now();
+  if(lastSent&&now-lastSent.t<30000&&km(lastSent,c)<0.15) return;
+  lastSent={...c,t:now};
+  const iso=new Date().toISOString();
+  C.sb.from("positions").upsert({courier:ME.id,lat:c.lat,lon:c.lon,accuracy:p.coords.accuracy,speed:p.coords.speed,on_shift:true,updated_at:iso}).then(()=>{});
+  C.sb.from("track_points").insert({courier:ME.id,lat:c.lat,lon:c.lon}).then(()=>{});
+}
+async function stopShift(silent){
+  if(geoWatch!=null){ navigator.geolocation.clearWatch(geoWatch); geoWatch=null; }
+  try{ wakeLock&&wakeLock.release(); }catch(e){} wakeLock=null;
+  if(state.shift&&ME){ try{ await C.sb.from("shifts").update({ended_at:new Date().toISOString()}).eq("id",state.shift.id); await C.sb.from("positions").update({on_shift:false,updated_at:new Date().toISOString()}).eq("courier",ME.id); }catch(e){} }
+  state.shift=null; save(); renderShift(); if(!silent) setStatus("המשמרת הסתיימה. המיקום כבר לא נשלח.");
+}
+$("#shiftBtn").addEventListener("click",()=>{ if(state.shift){ if(confirm("לסיים את המשמרת?")) stopShift(false); } else startShift(); });
+$("#logoutBtn").addEventListener("click",()=>{ if(confirm("לצאת מהחשבון?")) logout(); });
+
 render();
 setTimeout(showInstall,1500);
-flushTrack();
+if(C.on){ TRACK.url=""; boot(); } else { flushTrack(); }
 importFromHash();
 
 (async()=>{

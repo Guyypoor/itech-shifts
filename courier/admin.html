@@ -1,0 +1,452 @@
+<!doctype html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ניהול שליחויות</title>
+<meta name="theme-color" content="#0B6B3A">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Assistant:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="cloud.js"></script>
+<script src="shared.js"></script>
+<style>
+:root{
+  --bg:#EEF2EF; --surface:#FFFFFF; --ink:#15201A; --muted:#5A6A61; --line:#D3DCD6;
+  --sign:#0B6B3A; --sign-ink:#FFFFFF; --amber:#E39B12; --amber-soft:#FFF4DC; --done:#97A69D; --danger:#B3261E; --blue:#1F5FAD;
+  --font-display:"Rubik","Assistant",system-ui,sans-serif; --font-body:"Assistant","Rubik",system-ui,-apple-system,"Segoe UI",Arial,sans-serif; --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1411; --surface:#16201A; --ink:#E4EDE8; --muted:#94A49B; --line:#26342C;
+  --sign:#1E9457; --amber:#F2B23A; --amber-soft:#3A2E12; --done:#5F6E66; --danger:#F2867E; --blue:#6EA8F0; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0E1411; --surface:#16201A; --ink:#E4EDE8; --muted:#94A49B; --line:#26342C;
+  --sign:#1E9457; --amber:#F2B23A; --amber-soft:#3A2E12; --done:#5F6E66; --danger:#F2867E; --blue:#6EA8F0; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.45}
+.top{position:sticky;top:0;z-index:1000;background:var(--sign);color:var(--sign-ink);padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.top h1{font:800 1.25rem var(--font-display);margin:0}
+.top .sp{flex:1}
+.top button{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:8px;padding:6px 10px;font:700 .85rem var(--font-body);cursor:pointer}
+nav.tabs{display:flex;gap:6px;padding:10px 16px 0;max-width:1200px;margin:0 auto;flex-wrap:wrap}
+nav.tabs button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px 10px 0 0;padding:10px 16px;font:700 .95rem var(--font-body);cursor:pointer}
+nav.tabs button[aria-selected="true"]{background:var(--sign);color:#fff;border-color:var(--sign)}
+main{max-width:1200px;margin:0 auto;padding:0 16px 40px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:12px}
+h2{font:800 1.1rem var(--font-display);margin:0 0 10px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.row>*{flex:1 1 160px;min-width:0}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted);font-weight:600}
+input,textarea,select{width:100%;font:400 1rem var(--font-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+textarea{min-height:110px;resize:vertical}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:3px solid var(--amber);outline-offset:1px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:10px;padding:9px 14px;font:700 .95rem var(--font-body);cursor:pointer;white-space:nowrap;text-decoration:none}
+.btn.primary{background:var(--sign);color:#fff}.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.amber{background:var(--amber);color:#1C1404}.btn.danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+.btn.sm{padding:5px 9px;font-size:.82rem}.btn:disabled{opacity:.5;cursor:default}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.hint{font-size:.85rem;color:var(--muted);margin:6px 0 0}
+.status{font-size:.9rem;color:var(--muted);min-height:1.2em;margin-top:8px}
+.live{display:grid;grid-template-columns:1fr 320px;gap:12px;margin-top:12px}
+@media (max-width:860px){.live{grid-template-columns:1fr}}
+#map{height:68vh;min-height:360px;border-radius:var(--r);border:1px solid var(--line)}
+.clist{display:flex;flex-direction:column;gap:8px;max-height:68vh;overflow:auto}
+.cour{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface);cursor:pointer}
+.cour b{font:700 1rem var(--font-display)}
+.cour .m{font-size:.85rem;color:var(--muted)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:middle;background:var(--done)}
+.dot.on{background:#2EA44F}
+.bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--sign)}
+.tblwrap{overflow:auto;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;vertical-align:middle}
+th{font:700 .8rem var(--font-display);color:var(--muted);white-space:nowrap}
+td select{padding:5px 8px;font-size:.9rem;min-width:120px}
+.badge{display:inline-block;font:700 .75rem var(--font-body);padding:2px 8px;border-radius:6px;border:1px solid var(--line);white-space:nowrap}
+.b-new{background:var(--amber-soft);border-color:var(--amber)}.b-assigned{color:var(--blue);border-color:var(--blue)}
+.b-delivered{background:var(--sign);color:#fff;border-color:var(--sign)}.b-failed{color:var(--danger);border-color:var(--danger)}
+.b-cancelled{color:var(--muted)}.b-pending{background:var(--amber-soft);border-color:var(--amber)}.b-active{color:var(--sign);border-color:var(--sign)}.b-blocked{color:#fff;background:var(--danger);border-color:var(--danger)}
+.chip{font:700 .72rem var(--font-body);border-radius:6px;padding:1px 6px;background:var(--bg);border:1px solid var(--line);margin-inline-start:4px}
+.chip.urgent{background:var(--danger);color:#fff;border-color:var(--danger)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+.kpi .v{font:800 1.6rem var(--font-display);font-variant-numeric:tabular-nums}.kpi .l{font-size:.85rem;color:var(--muted)}
+.pin{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:800 12px/1 Rubik,sans-serif;color:#fff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)}
+.cpin{padding:3px 8px;border-radius:12px;background:#15201A;color:#fff;font:700 12px Rubik,sans-serif;white-space:nowrap;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.cpin.off{background:#7a857f}
+#gate{position:fixed;inset:0;z-index:3000;background:var(--bg);overflow:auto;padding:24px 16px}
+#gate .card{max-width:420px;margin:8vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px}
+#gate form{display:flex;flex-direction:column;gap:10px}
+.err{color:var(--danger);font-weight:600;min-height:1.2em}
+.swap{background:none;border:0;color:var(--sign);font:700 .95rem var(--font-body);cursor:pointer;margin-top:10px;padding:6px 0}
+.chkline{display:flex;flex-wrap:wrap;gap:10px}.chkline label{display:flex;gap:6px;align-items:center;font-weight:600}
+.chkline input{width:auto}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div id="gate"><div class="card" id="gateCard"><p>טוען...</p></div></div>
+<header class="top">
+  <h1>ניהול שליחויות</h1>
+  <span class="sp"></span>
+  <span id="adminName"></span>
+  <a class="btn ghost sm" href="./" style="color:#fff;border-color:rgba(255,255,255,.5)">אפליקציית שליח</a>
+  <button type="button" id="logout">יציאה</button>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" data-t="live" aria-selected="true" type="button">לוח חי</button>
+  <button role="tab" data-t="del" aria-selected="false" type="button">משלוחים</button>
+  <button role="tab" data-t="emp" aria-selected="false" type="button">עובדים <span id="pendN"></span></button>
+  <button role="tab" data-t="rep" aria-selected="false" type="button">דוחות</button>
+</nav>
+<main>
+  <!-- LIVE -->
+  <section id="t-live">
+    <div class="kpis" id="liveKpis"></div>
+    <div class="live">
+      <div id="map"></div>
+      <div class="clist" id="clist"></div>
+    </div>
+    <p class="hint">המיקום מתעדכן כשהשליח במשמרת והאפליקציה פתוחה אצלו. כשהוא בניווט ב-Waze, המיקום האחרון נשאר עם השעה שלו.</p>
+  </section>
+
+  <!-- DELIVERIES -->
+  <section id="t-del" hidden>
+    <div class="panel">
+      <div class="row">
+        <label class="f">יום<input type="date" id="dDay"></label>
+        <label class="f">נקודת יציאה (המחסן)<input type="text" id="depot" placeholder="רחוב ומספר, עיר"></label>
+        <label class="f">עיר ברירת מחדל<input type="text" id="defCity"></label>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>הוספת משלוחים</h2>
+      <div class="row">
+        <label class="f" style="flex:3 1 320px">מדביקים הודעת וואטסאפ או רשימה – כל כתובת בשורה. אפשר "דחוף", "אחרי 16:00", "עד 12:00".
+          <textarea id="addText"></textarea></label>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label class="f">או קובץ אקסל / CSV<input type="file" id="addXl" accept=".xlsx,.xls,.csv"></label>
+        <label class="f">לשבץ ישר לשליח<select id="addTo"><option value="">בלי שיבוץ (אחר כך)</option></select></label>
+      </div>
+      <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">הוספה ידנית של משלוח אחד</summary>
+        <div class="row" style="margin-top:8px">
+          <label class="f">כתובת<input id="mAddr"></label><label class="f">עיר<input id="mCity"></label>
+          <label class="f">לקוח<input id="mName"></label><label class="f">טלפון<input id="mPhone" type="tel"></label>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <label class="f">הערה<input id="mNote"></label><label class="f">לא לפני<input id="mAfter" type="time"></label><label class="f">עד<input id="mBefore" type="time"></label>
+          <label class="f" style="flex:0 0 auto"><span>&nbsp;</span><span class="chkline"><label><input type="checkbox" id="mUrg"> דחוף</label></span></label>
+        </div>
+      </details>
+      <div class="actions"><button class="btn primary" id="addBtn" type="button">הוסף משלוחים</button><span class="status" id="addStatus"></span></div>
+    </div>
+    <div class="panel">
+      <h2>משלוחי היום</h2>
+      <div class="actions">
+        <select id="fStatus" style="width:auto"><option value="">כל הסטטוסים</option><option value="new">לא משובץ</option><option value="assigned">משובץ</option><option value="delivered">נמסר</option><option value="failed">לא נמסר</option><option value="cancelled">בוטל</option></select>
+        <span class="hint" id="delCount"></span>
+      </div>
+      <div class="panel" style="background:var(--bg)">
+        <b>חלוקה אוטומטית</b> של המשלוחים הלא-משובצים בין השליחים המסומנים (לפי אזורים מנקודת היציאה):
+        <div class="chkline" id="splitWho" style="margin-top:8px"></div>
+        <div class="actions"><button class="btn amber" id="splitBtn" type="button">חלק אוטומטית</button><span class="status" id="splitStatus"></span></div>
+      </div>
+      <div class="tblwrap"><table><thead><tr><th>#</th><th>כתובת</th><th>לקוח</th><th>שליח</th><th>סטטוס</th><th>הגעה/מסירה</th><th></th></tr></thead><tbody id="dRows"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- EMPLOYEES -->
+  <section id="t-emp" hidden>
+    <div class="panel">
+      <h2>עובדים</h2>
+      <p class="hint">עובד חדש נרשם באפליקציית השליח עם השם, הטלפון והסיסמה שלו, ומופיע כאן כ"ממתין". אחרי שתאשר – הוא יכול לעבוד. "חסום" – האפליקציה ננעלת אצלו מיד ואין לו גישה לשום משלוח.</p>
+      <div class="actions"><button class="btn ghost sm" id="copyInvite" type="button">העתק הודעת הצטרפות לשליח חדש</button><span class="status" id="empStatus"></span></div>
+      <div class="tblwrap"><table><thead><tr><th>שם</th><th>טלפון</th><th>סטטוס</th><th>תפקיד</th><th>נראה לאחרונה</th><th>אישור מיקום</th><th></th></tr></thead><tbody id="eRows"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- REPORTS -->
+  <section id="t-rep" hidden>
+    <div class="panel">
+      <div class="row">
+        <label class="f">מתאריך<input type="date" id="rFrom"></label>
+        <label class="f">עד תאריך<input type="date" id="rTo"></label>
+        <label class="f">שליח<select id="rWho"><option value="">כולם</option></select></label>
+        <span style="flex:0 0 auto" class="actions"><button class="btn primary" id="rGo" type="button">הצג</button><button class="btn ghost" id="rCsv" type="button">הורד לאקסל (CSV)</button></span>
+      </div>
+      <div class="kpis" id="rKpis"></div>
+    </div>
+    <div class="panel"><h2>לפי שליח</h2><div class="tblwrap"><table><thead><tr><th>שליח</th><th>משלוחים</th><th>נמסרו</th><th>לא נמסרו</th><th>הצלחה</th><th>ימי עבודה</th><th>ממוצע ליום</th><th>שעות משמרת</th></tr></thead><tbody id="rByC"></tbody></table></div></div>
+    <div class="panel"><h2>לפי יום</h2><div class="tblwrap"><table><thead><tr><th>יום</th><th>משלוחים</th><th>נמסרו</th><th>לא נמסרו</th><th>שליחים</th></tr></thead><tbody id="rByD"></tbody></table></div></div>
+    <div class="panel"><h2>סיבות "לא נמסר"</h2><div id="rReasons" class="hint"></div></div>
+  </section>
+</main>
+
+<script>
+(() => {
+"use strict";
+const $=s=>document.querySelector(s), C=window.Cloud, sb=C.sb;
+let ME=null, PROF=[], DEL=[], POS=[], map=null, layer=null, G=null, firstFit=true;
+const ST={new:"לא משובץ",assigned:"משובץ",delivered:"נמסר",failed:"לא נמסר",cancelled:"בוטל",pending:"ממתין",active:"פעיל",blocked:"חסום"};
+function el(tag,attrs={},...kids){ const n=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==="class") n.className=v; else if(k==="text") n.textContent=v; else if(k.startsWith("on")) n.addEventListener(k.slice(2),v); else if(v!=null&&v!==false) n.setAttribute(k,v===true?"":v); } for(const k of kids){ if(k!=null) n.append(k); } return n; }
+const esc=t=>String(t??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clk=iso=>iso?new Date(iso).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"}):"";
+function ago(iso){ if(!iso) return "—"; const m=Math.round((Date.now()-Date.parse(iso))/60000); if(m<1) return "עכשיו"; if(m<60) return "לפני "+m+" דק'"; const h=Math.round(m/60); if(h<24) return "לפני "+h+" שע'"; return new Date(iso).toLocaleDateString("he-IL"); }
+const nameOf=id=>{ const p=PROF.find(x=>x.id===id); return p?(p.full_name||p.phone):"—"; };
+const couriers=()=>PROF.filter(p=>p.status==="active");
+const pref=(k,d)=>{ try{ return localStorage.getItem("admin-"+k)??d; }catch(e){ return d; } };
+const setPref=(k,v)=>{ try{ localStorage.setItem("admin-"+k,v); }catch(e){} };
+
+/* ---------- auth ---------- */
+function gate(html,bind){ $("#gate").hidden=false; $("#gateCard").innerHTML=html; bind&&bind(); }
+function showLogin(msg){
+  gate(`<h2 style="font:800 1.3rem var(--font-display);margin:0 0 8px">ניהול שליחויות – כניסת מנהל</h2>
+   <form id="lf"><label class="f">אימייל<input type="email" id="le" autocomplete="username" required></label>
+   <label class="f">סיסמה<input type="password" id="lp" autocomplete="current-password" required></label>
+   <div class="err" id="lerr">${msg||""}</div><button class="btn primary" type="submit">כניסה</button></form>
+   <button class="swap" id="toReg" type="button">כניסה ראשונה? יצירת חשבון מנהל</button>`,()=>{
+    $("#toReg").onclick=showReg;
+    $("#lf").onsubmit=async e=>{ e.preventDefault(); $("#lerr").textContent="מתחבר...";
+      const { error }=await sb.auth.signInWithPassword({email:$("#le").value.trim(),password:$("#lp").value});
+      if(error) return $("#lerr").textContent=C.errText(error); boot(); };
+  });
+}
+function showReg(){
+  gate(`<h2 style="font:800 1.3rem var(--font-display);margin:0 0 8px">יצירת חשבון מנהל</h2>
+   <p class="hint">רק האימייל של בעל העסק מקבל הרשאת מנהל אוטומטית.</p>
+   <form id="rf"><label class="f">שם<input id="rn" required></label><label class="f">אימייל<input type="email" id="re" required autocomplete="username"></label>
+   <label class="f">סיסמה (לפחות 6 תווים)<input type="password" id="rp" required minlength="6" autocomplete="new-password"></label>
+   <div class="err" id="rerr"></div><button class="btn primary" type="submit">יצירת חשבון</button></form>
+   <button class="swap" id="toLog" type="button">יש לי חשבון – כניסה</button>`,()=>{
+    $("#toLog").onclick=()=>showLogin();
+    $("#rf").onsubmit=async e=>{ e.preventDefault(); $("#rerr").textContent="יוצר...";
+      const { data, error }=await sb.auth.signUp({email:$("#re").value.trim(),password:$("#rp").value,options:{data:{full_name:$("#rn").value.trim()}}});
+      if(error) return $("#rerr").textContent=C.errText(error);
+      if(!data.session){ const r=await sb.auth.signInWithPassword({email:$("#re").value.trim(),password:$("#rp").value}); if(r.error) return $("#rerr").textContent=C.errText(r.error); }
+      boot(); };
+  });
+}
+let booted=false;
+async function boot(){
+  if(!C.on){ gate(`<h2>המערכת עוד לא מחוברת לשרת</h2><p class="hint">צריך להשלים את הקמת השרת.</p>`); return; }
+  let p; try{ p=await C.me(); }catch(e){ return gate(`<h2>אין חיבור</h2><p class="hint">${esc(C.errText(e))}</p><button class="btn primary" onclick="location.reload()">נסה שוב</button>`); }
+  if(!p) return showLogin();
+  if(p.role!=="admin"||p.status!=="active") return gate(`<h2>אין הרשאת מנהל</h2><p class="hint">החשבון הזה הוא חשבון שליח.</p><a class="btn primary" href="./">לאפליקציית השליח</a> <button class="swap" id="lo" type="button">יציאה</button>`,()=>{ $("#lo").onclick=logout; });
+  ME=p; $("#gate").hidden=true; $("#adminName").textContent=p.full_name||p.email;
+  if(booted) return; booted=true;
+  $("#dDay").value=C.todayIL(); $("#rTo").value=C.todayIL(); { const d=new Date(); d.setDate(1); $("#rFrom").value=d.toLocaleDateString("en-CA"); }
+  $("#depot").value=pref("depot",""); $("#defCity").value=pref("defCity","פרדס חנה-כרכור");
+  G=await loadGeo();
+  await Promise.all([loadProfiles(),loadDeliveries(),loadPositions()]);
+  sb.channel("admin-live")
+    .on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>debounce("del",loadDeliveries,500))
+    .on("postgres_changes",{event:"*",schema:"public",table:"positions"},()=>debounce("pos",loadPositions,500))
+    .on("postgres_changes",{event:"*",schema:"public",table:"profiles"},()=>debounce("prof",loadProfiles,500))
+    .subscribe();
+  setInterval(()=>{ renderLive(); },30000);
+}
+const timers={}; function debounce(k,fn,ms){ clearTimeout(timers[k]); timers[k]=setTimeout(fn,ms); }
+async function logout(){ try{ await sb.auth.signOut(); }catch(e){} location.reload(); }
+$("#logout").onclick=logout;
+
+/* ---------- data ---------- */
+async function loadProfiles(){
+  const { data }=await sb.from("profiles").select("*").order("created_at"); PROF=data||[];
+  const pend=PROF.filter(p=>p.status==="pending").length; $("#pendN").textContent=pend?"("+pend+" ממתינים)":"";
+  renderEmp(); renderAssignSelects(); renderLive(); renderDel();
+}
+async function loadDeliveries(){
+  const { data }=await sb.from("deliveries").select("*").eq("day",$("#dDay").value||C.todayIL()).order("assigned_to",{nullsFirst:true}).order("seq",{nullsFirst:false}).order("id");
+  DEL=data||[]; renderDel(); renderLive();
+}
+async function loadPositions(){ const { data }=await sb.from("positions").select("*"); POS=data||[]; renderLive(); }
+
+/* ---------- live ---------- */
+const STC={new:"#E39B12",assigned:"#1F5FAD",delivered:"#0B6B3A",failed:"#B3261E",cancelled:"#97A69D"};
+function renderLive(){
+  if(!map){ map=L.map("map").setView([32.47,34.97],11); L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map); layer=L.layerGroup().addTo(map); }
+  layer.clearLayers(); const pts=[];
+  const today=DEL.filter(d=>d.status!=="cancelled");
+  for(const d of today){ if(d.lat==null) continue;
+    L.marker([d.lat,d.lon],{icon:L.divIcon({className:"",html:`<div class="pin" style="background:${STC[d.status]}">${d.seq||"•"}</div>`,iconSize:[26,26],iconAnchor:[13,13]})})
+     .bindPopup(`<b>${esc(d.addr)}${d.city?", "+esc(d.city):""}</b><br>${esc(d.cust_name)} ${esc(d.cust_phone)}<br>${ST[d.status]} · ${esc(nameOf(d.assigned_to))}${d.done_at?"<br>"+clk(d.done_at):""}${d.reason?"<br>סיבה: "+esc(d.reason):""}`).addTo(layer); pts.push([d.lat,d.lon]); }
+  for(const p of POS){ const prof=PROF.find(x=>x.id===p.courier); if(!prof) continue; const stale=Date.now()-Date.parse(p.updated_at)>3600000; if(!p.on_shift&&stale) continue;
+    L.marker([p.lat,p.lon],{zIndexOffset:1000,icon:L.divIcon({className:"",html:`<div class="cpin ${p.on_shift?"":"off"}">🛵 ${esc(prof.full_name||prof.phone)}</div>`,iconSize:null,iconAnchor:[20,12]})})
+     .bindPopup(`<b>${esc(prof.full_name)}</b><br>${p.on_shift?"במשמרת":"לא במשמרת"} · עודכן ${ago(p.updated_at)}`).addTo(layer); pts.push([p.lat,p.lon]); }
+  if(firstFit&&pts.length){ map.fitBounds(L.latLngBounds(pts).pad(0.15)); firstFit=false; }
+  // kpis
+  const k=(v,l)=>el("div",{class:"kpi"},el("div",{class:"v",text:String(v)}),el("div",{class:"l",text:l}));
+  const onShift=POS.filter(p=>p.on_shift&&Date.now()-Date.parse(p.updated_at)<6*3600000).length;
+  $("#liveKpis").replaceChildren(k(today.length,"משלוחים היום"),k(today.filter(d=>d.status==="delivered").length,"נמסרו"),k(today.filter(d=>d.status==="failed").length,"לא נמסרו"),k(today.filter(d=>d.status==="new").length,"לא משובצים"),k(onShift,"שליחים במשמרת"));
+  // couriers list
+  const list=$("#clist"); list.innerHTML="";
+  for(const c of couriers()){
+    const mine=today.filter(d=>d.assigned_to===c.id), done=mine.filter(d=>d.status==="delivered"||d.status==="failed").length;
+    const pos=POS.find(p=>p.courier===c.id); const on=pos&&pos.on_shift;
+    const next=mine.filter(d=>d.status==="assigned").sort((a,b)=>(a.seq||999)-(b.seq||999))[0];
+    const card=el("div",{class:"cour",onclick:()=>{ if(pos) map.setView([pos.lat,pos.lon],14); }},
+      el("div",{},el("span",{class:"dot"+(on?" on":"")}),el("b",{text:c.full_name||c.phone})),
+      el("div",{class:"m",text:(on?"במשמרת":"לא במשמרת")+" · מיקום "+(pos?ago(pos.updated_at):"—")}),
+      el("div",{class:"m",text:done+"/"+mine.length+" טופלו"+(next?" · הבא: "+next.addr+(next.eta?" (~"+clk(next.eta)+")":""):"")}),
+      el("div",{class:"bar"},el("i",{style:"width:"+(mine.length?Math.round(done/mine.length*100):0)+"%"})));
+    list.append(card);
+  }
+  if(!couriers().length) list.append(el("p",{class:"hint",text:"עוד אין שליחים פעילים. שלח לשליחים את הקישור לאפליקציה, ואשר אותם בלשונית 'עובדים'."}));
+}
+
+/* ---------- deliveries ---------- */
+function renderAssignSelects(){
+  const opts=couriers().filter(c=>c.role!=="admin"||true).map(c=>[c.id,c.full_name||c.phone]);
+  const sel=$("#addTo"), cur=sel.value; sel.replaceChildren(el("option",{value:"",text:"בלי שיבוץ (אחר כך)"}),...opts.map(([v,t])=>el("option",{value:v,text:t}))); sel.value=cur;
+  const w=$("#splitWho"); const prev=new Set([...w.querySelectorAll("input:checked")].map(i=>i.value));
+  w.replaceChildren(...couriers().map(c=>{ const on=POS.find(p=>p.courier===c.id&&p.on_shift); const i=el("input",{type:"checkbox",value:c.id}); i.checked=prev.size?prev.has(c.id):!!on; return el("label",{},i," "+(c.full_name||c.phone)); }));
+  const rw=$("#rWho"), rc=rw.value; rw.replaceChildren(el("option",{value:"",text:"כולם"}),...PROF.filter(p=>p.role==="courier"||DEL.some(d=>d.assigned_to===p.id)).map(c=>el("option",{value:c.id,text:c.full_name||c.phone}))); rw.value=rc;
+}
+function renderDel(){
+  const f=$("#fStatus").value; const rows=DEL.filter(d=>!f||d.status===f);
+  $("#delCount").textContent=DEL.length+" משלוחים ביום הזה · "+DEL.filter(d=>d.status==="new").length+" לא משובצים";
+  const tb=$("#dRows"); tb.innerHTML="";
+  rows.forEach((d,i)=>{
+    const sel=el("select",{"aria-label":"שליח",disabled:(d.status==="delivered"||d.status==="failed")?true:null,onchange:e=>assign(d,e.target.value)},el("option",{value:"",text:"— לא משובץ —"}),...couriers().map(c=>el("option",{value:c.id,text:c.full_name||c.phone})));
+    sel.value=d.assigned_to||"";
+    const flags=[d.urgent?el("span",{class:"chip urgent",text:"דחוף"}):null,(d.after_t||d.before_t)?el("span",{class:"chip",text:d.after_t&&d.before_t?d.after_t+"–"+d.before_t:(d.after_t?"אחרי "+d.after_t:"עד "+d.before_t)}):null,d.lat==null?el("span",{class:"chip",text:"⚠ לא במפה"}):null];
+    tb.append(el("tr",{},el("td",{text:String(d.seq||i+1)}),
+      el("td",{},el("b",{text:d.addr+(d.city?", "+d.city:"")}),...flags,d.note?el("div",{class:"hint",text:d.note}):null),
+      el("td",{},d.cust_name||"",d.cust_phone?el("div",{class:"hint",text:d.cust_phone}):null),
+      el("td",{},sel),
+      el("td",{},el("span",{class:"badge b-"+d.status,text:ST[d.status]}),d.reason?el("div",{class:"hint",text:d.reason}):null),
+      el("td",{text:d.done_at?clk(d.done_at):(d.eta?"~"+clk(d.eta):"")}),
+      el("td",{},(d.status==="new"||d.status==="assigned")?el("button",{class:"btn danger sm",type:"button",text:"בטל",onclick:()=>cancelDel(d)}):(d.status==="cancelled"?el("button",{class:"btn ghost sm",type:"button",text:"שחזר",onclick:()=>assign(d,d.assigned_to||"")}):null))));
+  });
+  if(!rows.length) tb.append(el("tr",{},el("td",{colspan:"7",class:"hint",text:"אין משלוחים להצגה."})));
+}
+async function assign(d,cid){
+  const patch=cid?{assigned_to:cid,status:"assigned",seq:null}:{assigned_to:null,status:"new",seq:null};
+  const { error }=await sb.from("deliveries").update(patch).eq("id",d.id); if(error) alert(C.errText(error)); else loadDeliveries();
+}
+async function cancelDel(d){ if(!confirm("לבטל את המשלוח ל"+d.addr+"?")) return; await sb.from("deliveries").update({status:"cancelled"}).eq("id",d.id); loadDeliveries(); }
+$("#fStatus").onchange=renderDel;
+$("#dDay").onchange=loadDeliveries;
+$("#depot").onchange=e=>setPref("depot",e.target.value.trim());
+$("#defCity").onchange=e=>setPref("defCity",e.target.value.trim());
+
+let xlItems=[];
+$("#addXl").onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return; const wb=XLSX.read(await f.arrayBuffer()); const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
+  const head=(rows[0]||[]).map(x=>String(x)); const find=re=>head.findIndex(h=>re.test(h));
+  const ia=find(/כתובת|רחוב|address|street/i), inum=find(/מס(?:פר)?['׳]?\s*בית|^מספר$|house/i), ic=find(/עיר|ישוב|יישוב|city|town/i), iname=find(/שם|לקוח|נמען|name|customer/i), iph=find(/טלפון|נייד|פלאפון|phone|mobile|tel/i), inote=find(/הער|note|comment/i);
+  if(ia<0){ $("#addStatus").textContent="לא מצאתי עמודת כתובת בשורה הראשונה."; return; }
+  xlItems=rows.slice(1).filter(r=>String(r[ia]).trim()).map(r=>{ const note=inote>=0?String(r[inote]):""; const fl=parseFlags(note); return {addr:(String(r[ia])+(inum>=0&&r[inum]!==""?" "+r[inum]:"")).trim(),city:ic>=0?String(r[ic]).trim():"",name:iname>=0?String(r[iname]).trim():"",phone:iph>=0?String(r[iph]).trim():"",note:cleanFlags(note),urgent:fl.urgent,after:fl.after,before:fl.before}; });
+  $("#addStatus").textContent=xlItems.length+" שורות נקראו מהקובץ. לחץ 'הוסף משלוחים'.";
+};
+$("#addBtn").onclick=async()=>{
+  const items=[...parseWhatsApp($("#addText").value),...xlItems];
+  const v=id=>$("#"+id).value.trim();
+  if(v("mAddr")) items.push({addr:v("mAddr"),city:v("mCity"),name:v("mName"),phone:v("mPhone"),note:v("mNote"),urgent:$("#mUrg").checked,after:v("mAfter"),before:v("mBefore")});
+  if(!items.length){ $("#addStatus").textContent="אין מה להוסיף – הדבק כתובות, בחר קובץ או מלא הוספה ידנית."; return; }
+  const b=$("#addBtn"); b.disabled=true; const to=$("#addTo").value; const defCity=$("#defCity").value.trim();
+  const rows=[]; let k=0;
+  for(const it of items){ k++; $("#addStatus").textContent="מאתר כתובות במפה ("+k+"/"+items.length+")...";
+    const text=[it.addr,it.city||(/,/.test(it.addr)?"":defCity)].filter(Boolean).join(", ");
+    let g=null; try{ g=(await preciseGeocode(G,text,defCity))||(G?geocode(G,text,defCity,null):null); }catch(e){}
+    rows.push({created_by:ME.id,day:$("#dDay").value||C.todayIL(),assigned_to:to||null,status:to?"assigned":"new",addr:it.addr,city:it.city||"",cust_name:it.name||"",cust_phone:it.phone||"",note:it.note||"",urgent:!!it.urgent,after_t:it.after||"",before_t:it.before||"",lat:g?g.lat:null,lon:g?g.lon:null,geo:g?g.q:null});
+  }
+  const { error }=await sb.from("deliveries").insert(rows);
+  b.disabled=false;
+  if(error){ $("#addStatus").textContent=C.errText(error); return; }
+  $("#addStatus").textContent="נוספו "+rows.length+" משלוחים"+(to?" ושובצו ל"+nameOf(to):"")+"."+(rows.some(r=>r.lat==null)?" חלק לא אותרו במפה (מסומנים).":"");
+  $("#addText").value=""; $("#addXl").value=""; xlItems=[]; ["mAddr","mCity","mName","mPhone","mNote","mAfter","mBefore"].forEach(id=>$("#"+id).value=""); $("#mUrg").checked=false;
+  loadDeliveries();
+};
+$("#splitBtn").onclick=async()=>{
+  const who=[...$("#splitWho").querySelectorAll("input:checked")].map(i=>i.value);
+  const todo=DEL.filter(d=>d.status==="new");
+  if(!who.length) return $("#splitStatus").textContent="סמן לפחות שליח אחד.";
+  if(!todo.length) return $("#splitStatus").textContent="אין משלוחים לא משובצים.";
+  const depotTxt=$("#depot").value.trim(); let c=null;
+  if(depotTxt){ try{ c=(await preciseGeocode(G,depotTxt,$("#defCity").value))||geocode(G,depotTxt,$("#defCity").value,null); }catch(e){} }
+  const withLL=todo.filter(d=>d.lat!=null), noLL=todo.filter(d=>d.lat==null);
+  if(!c) c=withLL.length?{lat:withLL.reduce((a,d)=>a+d.lat,0)/withLL.length,lon:withLL.reduce((a,d)=>a+d.lon,0)/withLL.length}:{lat:32.47,lon:34.97};
+  const ang=d=>Math.atan2(d.lat-c.lat,(d.lon-c.lon)*Math.cos(c.lat*Math.PI/180));
+  withLL.sort((a,b)=>ang(a)-ang(b));
+  if(withLL.length>2){ let gi=0,gv=-1; for(let i=0;i<withLL.length;i++){ const a1=ang(withLL[i]), a2=ang(withLL[(i+1)%withLL.length])+(i+1===withLL.length?2*Math.PI:0); if(a2-a1>gv){gv=a2-a1;gi=i+1;} } withLL.push(...withLL.splice(0,gi%withLL.length)); }
+  const N=who.length, groups=who.map(()=>[]);
+  withLL.forEach((d,i)=>groups[Math.min(N-1,Math.floor(i*N/withLL.length))].push(d)); noLL.forEach((d,i)=>groups[i%N].push(d));
+  $("#splitStatus").textContent="משבץ...";
+  for(let g=0;g<N;g++) if(groups[g].length){ const { error }=await sb.from("deliveries").update({assigned_to:who[g],status:"assigned",seq:null}).in("id",groups[g].map(d=>d.id)); if(error){ $("#splitStatus").textContent=C.errText(error); return; } }
+  $("#splitStatus").textContent="שובץ: "+who.map((w,i)=>nameOf(w)+" "+groups[i].length).join(" · ")+". המשלוחים מופיעים אצלם באפליקציה עכשיו.";
+  loadDeliveries();
+};
+
+/* ---------- employees ---------- */
+function renderEmp(){
+  const tb=$("#eRows"); tb.innerHTML="";
+  const order={pending:0,active:1,blocked:2};
+  [...PROF].sort((a,b)=>order[a.status]-order[b.status]).forEach(p=>{
+    const self=p.id===ME.id;
+    const acts=el("td",{});
+    if(p.status==="pending"){ acts.append(el("button",{class:"btn primary sm",type:"button",text:"אשר",onclick:()=>setProf(p,{status:"active"})})," ",el("button",{class:"btn danger sm",type:"button",text:"דחה",onclick:()=>setProf(p,{status:"blocked"},"לדחות את "+p.full_name+"?")})); }
+    else if(p.status==="active"&&!self){ acts.append(el("button",{class:"btn danger sm",type:"button",text:"חסום",onclick:()=>setProf(p,{status:"blocked"},"לחסום את "+p.full_name+"? האפליקציה תינעל אצלו מיד.")})); }
+    else if(p.status==="blocked"){ acts.append(el("button",{class:"btn ghost sm",type:"button",text:"החזר לפעיל",onclick:()=>setProf(p,{status:"active"})})); }
+    if(!self&&p.status==="active") acts.append(" ",el("button",{class:"btn ghost sm",type:"button",text:p.role==="admin"?"הסר הרשאת מנהל":"הפוך למנהל",onclick:()=>setProf(p,{role:p.role==="admin"?"courier":"admin"},p.role==="admin"?null:"לתת ל"+p.full_name+" הרשאת מנהל מלאה?")}));
+    tb.append(el("tr",{},el("td",{},el("b",{text:p.full_name||"—"}),self?el("span",{class:"chip",text:"אתה"}):null),el("td",{text:p.phone||"—"}),
+      el("td",{},el("span",{class:"badge b-"+p.status,text:ST[p.status]})),el("td",{text:p.role==="admin"?"מנהל":"שליח"}),
+      el("td",{text:ago(p.last_seen)}),el("td",{text:p.consent_at?"✓ "+new Date(p.consent_at).toLocaleDateString("he-IL"):"—"}),acts));
+  });
+}
+async function setProf(p,patch,ask){ if(ask&&!confirm(ask)) return; const { error }=await sb.from("profiles").update(patch).eq("id",p.id); $("#empStatus").textContent=error?C.errText(error):"עודכן."; loadProfiles(); }
+$("#copyInvite").onclick=()=>{
+  const link=location.origin+location.pathname.replace(/admin\.html$/,"");
+  const t="היי 👋 זו האפליקציה של גיא שליחויות לסידור המסלול:\n"+link+"\n\n1. פותחים את הלינק ומתקינים על המסך הראשי (אייפון: שיתוף ← הוספה למסך הבית | אנדרואיד: התקן)\n2. לוחצים \"עובד חדש? הרשמה\" – שם, טלפון וסיסמה\n3. אחרי שאאשר אותך – המשלוחים שלך יופיעו שם לבד 🙏";
+  navigator.clipboard.writeText(t).then(()=>$("#empStatus").textContent="ההודעה הועתקה – הדבק בוואטסאפ.",()=>prompt("העתק:",t));
+};
+
+/* ---------- reports ---------- */
+let REP=null;
+$("#rGo").onclick=async()=>{
+  const from=$("#rFrom").value, to=$("#rTo").value, who=$("#rWho").value;
+  let q=sb.from("deliveries").select("*").gte("day",from).lte("day",to).neq("status","cancelled"); if(who) q=q.eq("assigned_to",who);
+  const { data, error }=await q.limit(10000); if(error){ alert(C.errText(error)); return; }
+  let sq=sb.from("shifts").select("*").gte("started_at",from+"T00:00:00").lte("started_at",to+"T23:59:59"); if(who) sq=sq.eq("courier",who);
+  const shifts=(await sq).data||[];
+  REP=data;
+  const by=new Map();
+  for(const d of data){ const k=d.assigned_to||"none"; if(!by.has(k)) by.set(k,{n:0,ok:0,fail:0,days:new Set()}); const o=by.get(k); o.n++; if(d.status==="delivered") o.ok++; if(d.status==="failed") o.fail++; if(d.status==="delivered"||d.status==="failed") o.days.add(d.day); }
+  const hrs=id=>shifts.filter(s=>s.courier===id).reduce((a,s)=>a+((s.ended_at?Date.parse(s.ended_at):Math.min(Date.now(),Date.parse(s.started_at)+12*3600000))-Date.parse(s.started_at))/3600000,0);
+  const tb=$("#rByC"); tb.innerHTML="";
+  [...by.entries()].sort((a,b)=>b[1].ok-a[1].ok).forEach(([k,o])=>tb.append(el("tr",{},el("td",{text:k==="none"?"לא משובץ":nameOf(k)}),el("td",{text:String(o.n)}),el("td",{text:String(o.ok)}),el("td",{text:String(o.fail)}),
+    el("td",{text:(o.ok+o.fail)?Math.round(o.ok/(o.ok+o.fail)*100)+"%":"—"}),el("td",{text:String(o.days.size)}),el("td",{text:o.days.size?(o.ok/o.days.size).toFixed(1):"—"}),el("td",{text:k==="none"?"—":hrs(k).toFixed(1)}))));
+  const byD=new Map(); for(const d of data){ if(!byD.has(d.day)) byD.set(d.day,{n:0,ok:0,fail:0,c:new Set()}); const o=byD.get(d.day); o.n++; if(d.status==="delivered") o.ok++; if(d.status==="failed") o.fail++; if(d.assigned_to) o.c.add(d.assigned_to); }
+  const td=$("#rByD"); td.innerHTML=""; [...byD.entries()].sort((a,b)=>b[0].localeCompare(a[0])).forEach(([day,o])=>td.append(el("tr",{},el("td",{text:new Date(day).toLocaleDateString("he-IL",{weekday:"short",day:"numeric",month:"numeric"})}),el("td",{text:String(o.n)}),el("td",{text:String(o.ok)}),el("td",{text:String(o.fail)}),el("td",{text:String(o.c.size)}))));
+  const reasons={}; data.filter(d=>d.status==="failed").forEach(d=>{ const r=(d.reason||"לא צוין").trim(); reasons[r]=(reasons[r]||0)+1; });
+  $("#rReasons").textContent=Object.keys(reasons).length?Object.entries(reasons).sort((a,b)=>b[1]-a[1]).map(([r,n])=>r+": "+n).join(" · "):"אין.";
+  const ok=data.filter(d=>d.status==="delivered").length, fail=data.filter(d=>d.status==="failed").length;
+  const k=(v,l)=>el("div",{class:"kpi"},el("div",{class:"v",text:String(v)}),el("div",{class:"l",text:l}));
+  $("#rKpis").replaceChildren(k(data.length,"משלוחים"),k(ok,"נמסרו"),k(fail,"לא נמסרו"),k((ok+fail)?Math.round(ok/(ok+fail)*100)+"%":"—","אחוז הצלחה"),k(byD.size,"ימים"));
+};
+$("#rCsv").onclick=()=>{
+  if(!REP){ alert("לחץ קודם 'הצג'."); return; }
+  const head=["יום","שליח","כתובת","עיר","לקוח","טלפון","סטטוס","סיבה","שעת מסירה","דחוף","הערה"];
+  const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+  const lines=[head.map(q).join(",")].concat(REP.map(d=>[d.day,nameOf(d.assigned_to),d.addr,d.city,d.cust_name,d.cust_phone,ST[d.status],d.reason,d.done_at?new Date(d.done_at).toLocaleString("he-IL"):"",d.urgent?"כן":"",d.note].map(q).join(",")));
+  const blob=new Blob(["﻿"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=el("a",{href:URL.createObjectURL(blob),download:"משלוחים_"+$("#rFrom").value+"_"+$("#rTo").value+".csv"}); document.body.append(a); a.click(); a.remove();
+};
+
+/* ---------- tabs ---------- */
+document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav.tabs button").forEach(x=>x.setAttribute("aria-selected",String(x===b)));
+  ["live","del","emp","rep"].forEach(t=>$("#t-"+t).hidden=t!==b.dataset.t);
+  if(b.dataset.t==="live"&&map) setTimeout(()=>map.invalidateSize(),50);
+  if(b.dataset.t==="rep"&&!REP) $("#rGo").click();
+});
+boot();
+})();
+</script>
+</body>
+</html>
