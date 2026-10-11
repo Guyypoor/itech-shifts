@@ -94,6 +94,20 @@ ol.stops{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;g
 .thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .thumbs img{width:72px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line);max-width:100%}
 @media (prefers-reduced-motion:no-preference){.stop{transition:opacity .2s,border-color .2s}}
+.chip{font:700 .78rem var(--font-body);border-radius:6px;padding:1px 8px;background:var(--bg);border:1px solid var(--line);color:var(--ink)}
+.chip.urgent{background:var(--danger);border-color:var(--danger);color:#fff}
+.chip.eta{background:var(--amber-soft);border-color:var(--amber)}
+.chip.fail{color:var(--danger);border-color:var(--danger)}
+.stop.failed .addr{text-decoration:line-through;text-decoration-color:var(--danger)}
+#mapBox{height:360px;border-radius:var(--r);border:1px solid var(--line);margin-bottom:12px;overflow:hidden}
+.pin{width:28px;height:28px;border-radius:50%;background:#0B6B3A;color:#fff;display:grid;place-items:center;font:800 13px/1 Rubik,Assistant,sans-serif;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)}
+.pin.next{background:#E39B12;color:#1C1404}.pin.done{background:#97A69D}.pin.s{background:#15201A}.pin.urg{background:#B3261E}
+details.mgr>summary{cursor:pointer;font:700 1rem var(--font-display);padding:4px 0}
+.crew{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.crew>div{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.crew b{flex:1 1 140px}
+.chk{display:flex;align-items:center;gap:6px;font-size:.9rem;color:var(--ink);font-weight:600}
+input[type=time]{font:400 1rem var(--font-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
 </style>
 </head>
 <body>
@@ -112,6 +126,12 @@ ol.stops{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;g
     <button class="btn ghost sm" id="clearExample" type="button">נקה והתחל מסלול שלי</button>
   </div>
 
+  <div id="installBanner" class="banner" hidden style="margin-top:14px">
+    <span id="installTxt">אפשר להתקין את מסלול שליח כאפליקציה על המסך הראשי.</span>
+    <button class="btn primary sm" id="installBtn" type="button" hidden>התקן</button>
+    <button class="btn ghost sm" id="installClose" type="button">סגור</button>
+  </div>
+
   <section aria-labelledby="startLbl">
     <p class="label" id="startLbl">נקודת יציאה ועיר ברירת מחדל</p>
     <div class="panel start">
@@ -120,6 +140,18 @@ ol.stops{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;g
       </label>
       <label class="f" for="defCity">עיר, אם לא כתובה בכתובת
         <input type="text" id="defCity" placeholder="פרדס חנה-כרכור" autocomplete="off">
+      </label>
+      <label class="f" for="endMode">איפה מסיימים
+        <select id="endMode"><option value="none">בעצירה האחרונה</option><option value="start">חוזרים לנקודת היציאה</option><option value="custom">בכתובת אחרת</option></select>
+      </label>
+      <label class="f" for="endAddr" id="endAddrLbl" hidden>כתובת סיום
+        <input type="text" id="endAddr" placeholder="למשל: הבית" autocomplete="off">
+      </label>
+      <label class="f" for="departAt">שעת יציאה (ריק = עכשיו)
+        <input type="time" id="departAt">
+      </label>
+      <label class="f" for="courierName">שם השליח
+        <input type="text" id="courierName" placeholder="השם שלך – מופיע בדיווח למנהל" autocomplete="off">
       </label>
     </div>
   </section>
@@ -135,7 +167,7 @@ ol.stops{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;g
       </div>
 
       <div id="pane-wa" role="tabpanel" aria-labelledby="tab-wa">
-        <label class="f" for="waText">מדביקים כאן את ההודעה או כמה הודעות מהקבוצה. כל כתובת בשורה משלה.
+        <label class="f" for="waText">מדביקים כאן את ההודעה או כמה הודעות מהקבוצה. כל כתובת בשורה משלה. אפשר לכתוב בשורה "דחוף", "אחרי 16:00" או "עד 12:00".
           <textarea id="waText" placeholder="[10.10.2026, 08:12] גיא: הרצל 12 חדרה 052-1234567&#10;מיכל לוי – הנשיא 7, בנימינה&#10;3. דרך הבנים 40 פרדס חנה"></textarea>
         </label>
         <div class="actions">
@@ -192,6 +224,11 @@ ol.stops{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;g
             <label class="f" for="manPhone">טלפון<input type="tel" id="manPhone" autocomplete="off"></label>
             <label class="f" for="manNote">הערה<input type="text" id="manNote" autocomplete="off" placeholder="קומה, קוד, להשאיר ליד הדלת"></label>
           </div>
+          <div class="row" style="margin-top:8px;align-items:end">
+            <label class="chk" for="manUrgent"><input type="checkbox" id="manUrgent"> דחוף – בהתחלה</label>
+            <label class="f" for="manAfter">לא לפני<input type="time" id="manAfter"></label>
+            <label class="f" for="manBefore">עד השעה<input type="time" id="manBefore"></label>
+          </div>
           <div class="actions"><button class="btn amber" type="submit">הוסף עצירה</button></div>
         </form>
       </div>
@@ -203,15 +240,31 @@ ol.stops{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;g
     <div class="routebar">
       <button class="btn primary" id="orderGeo" type="button">סדר מסלול קצר</button>
       <button class="btn ghost" id="orderBasic" type="button">סדר לפי עיר ורחוב</button>
+      <button class="btn ghost" id="mapBtn" type="button">מפה</button>
       <button class="btn ghost" id="openGmaps" type="button">כל המסלול בגוגל מפות</button>
       <button class="btn ghost" id="copyWa" type="button">העתק לוואטסאפ</button>
       <button class="btn danger" id="clearAll" type="button">נקה הכל</button>
     </div>
     <div class="status" id="status" role="status"></div>
+    <div id="mapBox" hidden></div>
     <div id="gmapsLinks" class="actions" hidden></div>
     <p class="hint">נתוני מפה: © OpenStreetMap contributors</p>
     <textarea id="copyOut" class="copyout" hidden readonly aria-label="טקסט להעתקה"></textarea>
     <ol class="stops" id="stops"></ol>
+  </section>
+
+  <section aria-labelledby="mgrLbl">
+    <p class="label" id="mgrLbl">למנהל</p>
+    <details class="panel mgr" id="mgr">
+      <summary>חלוקת המשלוחים בין כמה שליחים</summary>
+      <p class="hint">מכניסים למעלה את כל המשלוחים של היום, כותבים כאן את שמות השליחים, והאפליקציה מחלקת לפי אזורים. כל שליח מקבל לינק בוואטסאפ שהמסלול שלו כבר בתוכו.</p>
+      <label class="f" for="crewNames" style="margin-top:10px">שמות השליחים, מופרדים בפסיק
+        <input type="text" id="crewNames" placeholder="יונתן, יצחק, חיים" autocomplete="off">
+      </label>
+      <div class="actions"><button class="btn primary" id="splitBtn" type="button">חלק את המשלוחים</button></div>
+      <div id="crewOut" class="crew" hidden></div>
+      <p class="hint" id="trackHint"></p>
+    </details>
   </section>
 </div>
 
@@ -240,6 +293,18 @@ function load(){
   return s;
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+/* "דחוף", "אחרי 16:00", "עד 12", "בין 14-16" inside a line become flags */
+function hhmm(t){ const m=String(t||"").match(/^(\d{1,2})(?::(\d{2}))?$/); if(!m) return ""; const H=+m[1], M=+(m[2]||0); if(H>23||M>59) return ""; return String(H).padStart(2,"0")+":"+String(M).padStart(2,"0"); }
+function parseFlags(text){
+  const t=String(text||""); const f={urgent:/דחוף|בהול|אקספרס/.test(t),after:"",before:""};
+  let m=t.match(/בין\s*(?:השעות\s*)?(\d{1,2}(?::\d{2})?)\s*[-–ל]\s*(\d{1,2}(?::\d{2})?)/); if(m){ f.after=hhmm(m[1]); f.before=hhmm(m[2]); }
+  m=t.match(/(?:אחרי|לא לפני|החל מ-?)\s*(?:השעה\s*)?(\d{1,2}:\d{2}|\d{1,2}(?=\s|$))/); if(m&&!f.after) f.after=hhmm(m[1]);
+  m=t.match(/(?<!לא\s)(?:עד|לפני)\s*(?:השעה\s*)?(\d{1,2}:\d{2}|\d{1,2}(?=\s|$))/); if(m&&!f.before) f.before=hhmm(m[1]);
+  return f;
+}
+function cleanFlags(t){ return String(t||"").replace(/דחוף!*|בהול|אקספרס/g,"").replace(/(בין\s*(השעות\s*)?\d{1,2}(:\d{2})?\s*[-–ל]\s*\d{1,2}(:\d{2})?|(אחרי|לא לפני|עד|לפני)\s*(השעה\s*)?\d{1,2}(:\d{2})?)/g,"").replace(/\s{2,}/g," ").replace(/^[\s,–-]+|[\s,–-]+$/g,"").trim(); }
+function secOfDay(hm){ const m=String(hm||"").match(/^(\d{2}):(\d{2})$/); return m?(+m[1])*3600+(+m[2])*60:null; }
+function clock(ms){ return new Date(ms).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"}); }
 
 /* ---------- helpers ---------- */
 function full(st){
@@ -278,7 +343,8 @@ function cleanLine(l){
 }
 function parseWhatsApp(text){
   const out=[]; let pendingName="";
-  for(const raw of text.split(/\r?\n/)){
+  for(const raw0 of text.split(/\r?\n/)){
+    const fl=parseFlags(raw0.replace(/^\[[^\]]*\]/,"")); const raw=cleanFlags(raw0);
     let l=cleanLine(raw).replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g," ").replace(/\b\d{1,2}[./]\d{1,2}[./]\d{2,4}\b/g," ").replace(/[|_~^`]+/g," ").replace(/\s{2,}/g," ").trim();
     if(!l||/המדיה הושמטה|הודעה זו נמחקה|image omitted|<.*>/.test(l)) continue;
     let phone=""; const m=l.match(PHONE_RE);
@@ -294,7 +360,7 @@ function parseWhatsApp(text){
     }
     l=l.replace(/[,\s]+$/,"");
     if(!/[א-ת]{2,}/.test(l)||!/\d/.test(l)) continue;
-    if(l) out.push({addr:l, city:"", name, phone, note:""});
+    if(l) out.push({addr:l, city:"", name, phone, note:"", urgent:fl.urgent, after:fl.after, before:fl.before});
   }
   return out;
 }
@@ -358,7 +424,9 @@ function addStops(items){
   const seen=new Set(state.stops.map(s=>full(s)));
   let added=0;
   for(const it of items){
-    const st={id:uid(),addr:it.addr,city:it.city||"",name:it.name||"",phone:it.phone||"",note:it.note||"",done:false,doneAt:null};
+    const fl=parseFlags([it.addr,it.note,it.raw||""].join(" "));
+    const st={id:uid(),addr:it.addr,city:it.city||"",name:it.name||"",phone:it.phone||"",note:cleanFlags(it.note||""),done:false,doneAt:null,
+      urgent:!!(it.urgent||fl.urgent), after:it.after||fl.after||"", before:it.before||fl.before||""};
     if(seen.has(full(st))) continue; seen.add(full(st)); state.stops.push(st); added++;
   }
   save(); render();
@@ -490,116 +558,334 @@ async function preciseGeocode(G,text,defCity){
 }
 
 /* ---------- shortest route: real road matrix + exact / heuristic solver ---------- */
-const ROUTERS=["https://router.project-osrm.org/table/v1/driving/","https://routing.openstreetmap.de/routed-car/table/v1/driving/"];
+const ROUTERS=["https://router.project-osrm.org","https://routing.openstreetmap.de/routed-car"];
+const SVC=180; // seconds at each stop
 async function roadMatrix(nodes){
   if(nodes.length>100) return null;
   const coords=nodes.map(p=>p.lon.toFixed(5)+","+p.lat.toFixed(5)).join(";");
   for(const base of ROUTERS){
     try{
       const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),12000);
-      const r=await fetch(base+coords+"?annotations=duration,distance",{signal:ctl.signal}); clearTimeout(t);
+      const r=await fetch(base+"/table/v1/driving/"+coords+"?annotations=duration,distance",{signal:ctl.signal}); clearTimeout(t);
       if(!r.ok) continue; const j=await r.json();
-      if(j.code!=="Ok"||!j.durations) continue;
-      const n=nodes.length, bad=j.durations.some(row=>row.some(v=>v==null));
-      if(bad) continue;
-      return {T:j.durations, Dm:j.distances||null, road:true};
+      if(j.code!=="Ok"||!j.durations||j.durations.some(row=>row.some(v=>v==null))) continue;
+      return {T:j.durations, Dm:j.distances||j.durations.map(r=>r.map(v=>v*11)), road:true};
+    }catch(e){}
+  }
+  return null;
+}
+async function roadLine(nodes){ // geometry for the map
+  if(nodes.length<2||nodes.length>100) return null;
+  const coords=nodes.map(p=>p.lon.toFixed(5)+","+p.lat.toFixed(5)).join(";");
+  for(const base of ROUTERS){
+    try{
+      const r=await fetch(base+"/route/v1/driving/"+coords+"?overview=simplified&geometries=geojson"); if(!r.ok) continue;
+      const j=await r.json(); const c=j.routes&&j.routes[0]&&j.routes[0].geometry.coordinates; if(!c) continue;
+      const step=Math.max(1,Math.ceil(c.length/1500)); return c.filter((_,i)=>i%step===0||i===c.length-1).map(([lo,la])=>[+la.toFixed(5),+lo.toFixed(5)]);
     }catch(e){}
   }
   return null;
 }
 function airMatrix(nodes){
-  const n=nodes.length, T=[], Dm=[];
-  for(let i=0;i<n;i++){ T.push([]); Dm.push([]); for(let j=0;j<n;j++){ const d=km(nodes[i],nodes[j])*1300; Dm[i].push(d); T[i].push(d/11); } }
+  const T=[], Dm=[];
+  for(const a of nodes){ const tr=[], dr=[]; for(const b of nodes){ const d=km(a,b)*1300; dr.push(d); tr.push(d/11); } T.push(tr); Dm.push(dr); }
   return {T,Dm,road:false};
 }
-// node 0 = start (or null-start: free first stop). Returns order of node indices 1..n-1, open path (no return).
-function pathCost(M,ord,hasStart){ let c=0, prev=hasStart?0:-1; for(const i of ord){ if(prev>=0) c+=M[prev][i]; prev=i; } return c; }
-function solveExact(M,n,hasStart){
-  // Held-Karp over stops 1..n-1
-  const k=n-1, FULL=1<<k, INF=1e15;
+/* simulate a visit order: ids are node indexes, from node `from` at time t0 (sec of day). */
+function simulate(M,ids,from,end,t0,W){
+  let t=t0, prev=from, late=0, drive=0;
+  for(const i of ids){ const d=M[prev][i]; drive+=d; t+=d; const w=W[i]; if(w){ if(w.a!=null&&t<w.a) t=w.a; if(w.b!=null&&t>w.b) late+=t-w.b; } t+=SVC; prev=i; }
+  if(end>=0){ drive+=M[prev][end]; t+=M[prev][end]; }
+  return {t,late,drive,cost:(t-t0)+30*late};
+}
+function heldKarp(M,set,from,end){
+  const k=set.length, FULL=1<<k, INF=1e15;
   const dp=new Float64Array(FULL*k).fill(INF), par=new Int8Array(FULL*k).fill(-1);
-  for(let j=0;j<k;j++) dp[(1<<j)*k+j]=hasStart?M[0][j+1]:0;
-  for(let S=1;S<FULL;S++){ for(let j=0;j<k;j++){ const v=dp[S*k+j]; if(!(S&(1<<j))||v>=INF) continue;
-    for(let x=0;x<k;x++){ if(S&(1<<x)) continue; const S2=S|(1<<x), nv=v+M[j+1][x+1]; if(nv<dp[S2*k+x]){ dp[S2*k+x]=nv; par[S2*k+x]=j; } } } }
-  let best=-1,bv=INF; for(let j=0;j<k;j++){ if(dp[(FULL-1)*k+j]<bv){bv=dp[(FULL-1)*k+j];best=j;} }
-  const ord=[]; let S=FULL-1, j=best; while(j>=0){ ord.push(j+1); const pj=par[S*k+j]; S&=~(1<<j); j=pj; }
+  for(let j=0;j<k;j++) dp[(1<<j)*k+j]=M[from][set[j]];
+  for(let S=1;S<FULL;S++) for(let j=0;j<k;j++){ const v=dp[S*k+j]; if(!(S&(1<<j))||v>=INF) continue;
+    for(let x=0;x<k;x++){ if(S&(1<<x)) continue; const S2=S|(1<<x), nv=v+M[set[j]][set[x]]; if(nv<dp[S2*k+x]){ dp[S2*k+x]=nv; par[S2*k+x]=j; } } }
+  let best=-1,bv=INF; for(let j=0;j<k;j++){ const v=dp[(FULL-1)*k+j]+(end>=0?M[set[j]][end]:0); if(v<bv){bv=v;best=j;} }
+  const ord=[]; let S=FULL-1, j=best; while(j>=0){ ord.push(set[j]); const pj=par[S*k+j]; S&=~(1<<j); j=pj; }
   return ord.reverse();
 }
-function improve(M,ord,hasStart){
-  let best=ord.slice(), bc=pathCost(M,best,hasStart), better=true, guard=0;
-  while(better&&guard++<60){
+function improve(costFn,ord){
+  let best=ord.slice(), bc=costFn(best), better=true, guard=0;
+  while(better&&guard++<80){
     better=false; const n=best.length;
-    for(let i=0;i<n-1&&!better;i++) for(let k=i+1;k<n;k++){ // 2-opt (full recompute: matrix may be one-way)
-      const c=best.slice(0,i).concat(best.slice(i,k+1).reverse(),best.slice(k+1)); const cc=pathCost(M,c,hasStart);
+    for(let i=0;i<n-1&&!better;i++) for(let k=i+1;k<n;k++){
+      const c=best.slice(0,i).concat(best.slice(i,k+1).reverse(),best.slice(k+1)); const cc=costFn(c);
       if(cc+1e-6<bc){ best=c; bc=cc; better=true; break; } }
-    for(let L=1;L<=3&&!better;L++) for(let i=0;i+L<=n&&!better;i++){ // or-opt: move a block of 1-3 stops
+    for(let L=1;L<=3&&!better;L++) for(let i=0;i+L<=n&&!better;i++){
       const seg=best.slice(i,i+L), rest=best.slice(0,i).concat(best.slice(i+L));
-      for(let p=0;p<=rest.length;p++){ if(p===i) continue; const c=rest.slice(0,p).concat(seg,rest.slice(p)); const cc=pathCost(M,c,hasStart);
+      for(let p=0;p<=rest.length;p++){ if(p===i) continue; const c=rest.slice(0,p).concat(seg,rest.slice(p)); const cc=costFn(c);
         if(cc+1e-6<bc){ best=c; bc=cc; better=true; break; } } }
   }
   return best;
 }
-function solveHeuristic(M,n,hasStart){
-  const stops=[...Array(n-1)].map((_,i)=>i+1); let best=null, bc=1e18;
-  const firsts=hasStart?[0]:stops.slice(0,Math.min(stops.length,8));
-  for(const f of firsts){
-    const left=new Set(stops), ord=[]; let cur=f;
-    if(!hasStart){ ord.push(f); left.delete(f); }
+function solveSet(M,set,from,end,t0,W){
+  if(set.length<=1) return set.slice();
+  const timed=set.some(i=>W[i]);
+  const costFn=o=>simulate(M,o,from,end,t0,W).cost;
+  if(!timed&&set.length<=15) return heldKarp(M,set,from,end);
+  if(set.length<=9){ // exhaustive search with pruning – exact even with time windows
+    let best=null, bc=1e18; const ord=[], used=new Set();
+    const dfs=(prev,t,late)=>{
+      const partial=(t)+30*late; if(partial>=bc) return;
+      if(ord.length===set.length){ const tt=t+(end>=0?M[prev][end]:0), c=tt+30*late; if(c<bc){ bc=c; best=ord.slice(); } return; }
+      for(const i of set){ if(used.has(i)) continue; let t2=t+M[prev][i]; const w=W[i]; let l2=late; if(w){ if(w.a!=null&&t2<w.a) t2=w.a; if(w.b!=null&&t2>w.b) l2+=t2-w.b; } t2+=SVC;
+        used.add(i); ord.push(i); dfs(i,t2,l2); ord.pop(); used.delete(i); }
+    };
+    dfs(from,t0,0); return best;
+  }
+  let best=null, bc=1e18;
+  const seeds=[null,...set.filter(i=>W[i]).slice(0,6),...set.filter(i=>!W[i]).slice(0,4)];
+  for(const seed of seeds){ // nearest neighbour, optionally forcing the earliest window first
+    const left=new Set(set), ord=[]; let cur=from;
+    if(seed!=null){ ord.push(seed); left.delete(seed); cur=seed; }
     while(left.size){ let b=-1,bd=1e18; for(const i of left){ if(M[cur][i]<bd){bd=M[cur][i];b=i;} } ord.push(b); left.delete(b); cur=b; }
-    const o=improve(M,ord,hasStart), c=pathCost(M,o,hasStart); if(c<bc){bc=c;best=o;}
+    const o=improve(costFn,ord), c=costFn(o); if(c<bc){bc=c;best=o;}
   }
   return best;
 }
-async function routeOrder(start,pts){
-  const n=pts.length; if(n<2) return {ord:pts.map((_,i)=>i),mx:null};
-  const nodes=[start||pts[0],...pts], hasStart=!!start;
+/* pts: [{lat,lon,urgent,after,before}] ; start/end: {lat,lon}|null. Returns order of pts indexes + timings */
+async function routeOrder(start,pts,end,t0){
+  const n=pts.length;
+  const nodes=[start||pts[0],...pts]; const endIdx=end?nodes.length:-1; if(end) nodes.push(end);
   const mx=(await roadMatrix(nodes))||airMatrix(nodes);
-  const N=nodes.length;
-  let ord=(N-1<=15)?solveExact(mx.T,N,hasStart):solveHeuristic(mx.T,N,hasStart);
-  ord=improve(mx.T,ord,hasStart);
-  const sec=pathCost(mx.T,ord,hasStart), meters=pathCost(mx.Dm||mx.T,ord,hasStart);
-  return {ord:ord.map(i=>i-1), mx, sec, meters, exact:N-1<=15};
+  if(!start){ for(let j=0;j<nodes.length;j++){ mx.T[0][j]=0; mx.Dm[0][j]=0; } }
+  const W={}; pts.forEach((p,i)=>{ const a=secOfDay(p.after), b=secOfDay(p.before); if(a!=null||b!=null) W[i+1]={a,b}; });
+  const ids=pts.map((_,i)=>i+1), urg=ids.filter(i=>pts[i-1].urgent), rest=ids.filter(i=>!pts[i-1].urgent);
+  let ord=[];
+  if(urg.length){ ord=solveSet(mx.T,urg,0,-1,t0,W); const last=ord[ord.length-1]; const t1=simulate(mx.T,ord,0,-1,t0,W).t; ord=ord.concat(solveSet(mx.T,rest,last,endIdx,t1,W)); }
+  else ord=solveSet(mx.T,rest,0,endIdx,t0,W);
+  // timings
+  let t=t0, prev=0, meters=0; const legs=[], etas=[], lates=[];
+  for(const i of ord){ const d=mx.T[prev][i]; meters+=mx.Dm[prev][i]; t+=d; const w=W[i]; if(w&&w.a!=null&&t<w.a) t=w.a; legs.push(d); etas.push(t); lates.push(!!(w&&w.b!=null&&t>w.b)); t+=SVC; prev=i; }
+  if(endIdx>=0){ meters+=mx.Dm[prev][endIdx]; t+=mx.T[prev][endIdx]; }
+  const exact=!Object.keys(W).length&&urg.length<=15&&rest.length<=15;
+  return {ord:ord.map(i=>i-1), legs, etas, lates, mx, sec:t-t0, meters, exact, endIdx};
+}
+function departSec(){
+  const d=secOfDay(state.departAt||""); if(d!=null) return d;
+  const n=new Date(); return n.getHours()*3600+n.getMinutes()*60;
+}
+function dayMs(sec){ const d=new Date(); d.setHours(0,0,0,0); return d.getTime()+sec*1000; }
+function recomputeEta(){ // after a delivery: shift the remaining ETAs from "now"
+  const open=state.stops.filter(s=>!s.done&&s.leg!=null); if(!open.length) return;
+  let t=Date.now();
+  for(const s of state.stops){ if(s.done||s.leg==null) continue; t+=s.leg*1000; const a=secOfDay(s.after); if(a!=null&&t<dayMs(a)) t=dayMs(a); s.eta=t; t+=SVC*1000; }
+}
+async function locate(G,s,near){
+  const key=full(s);
+  if(s.lat!=null&&s.gk===key) return {lat:s.lat,lon:s.lon,q:s.geo};
+  const loc=geocode(G,key,state.defCity,near);
+  let g=await preciseGeocode(G,key,state.defCity);
+  if(g&&g.q==="street"&&loc&&loc.q==="street") g=loc;
+  if(!g) g=loc;
+  s.geo=g?g.q:"none"; s.gk=key; s.lat=g?g.lat:null; s.lon=g?g.lon:null;
+  return g;
+}
+async function placeOf(G,text){
+  if(!text) return null;
+  return (await preciseGeocode(G,text,state.defCity))||geocode(G,text,state.defCity,null);
 }
 async function orderGeo(){
   const open=state.stops.filter(s=>!s.done), done=state.stops.filter(s=>s.done);
-  if(open.length<2){ setStatus("צריך לפחות שתי עצירות פתוחות כדי לסדר."); return; }
-  const btn=$("#orderGeo"); btn.disabled=true; setStatus("מחשב את המסלול הקצר ביותר לפי כבישים...");
+  if(open.length<1){ setStatus("אין עצירות פתוחות לסדר."); return; }
+  const btn=$("#orderGeo"); btn.disabled=true; setStatus("מאתר כתובות במפה...");
   try{
     const G=await loadGeo();
     if(!G){ orderBasic(); setStatus("לא הצלחתי לטעון את המפה, לכן סודר לפי עיר ורחוב. נסה שוב בעוד רגע."); return; }
     gcOffline=false;
-    const startLocal=state.start?geocode(G,state.start,state.defCity,null):(state.defCity?geocode(G,state.defCity,"",null):null);
-    const startPrec=state.start?await preciseGeocode(G,state.start,state.defCity):null;
-    const startPt=startPrec||startLocal;
+    const startPt=state.start?await placeOf(G,state.start):(state.defCity?geocode(G,state.defCity,"",null):null);
+    const endText=state.endMode==="start"?state.start:(state.endMode==="custom"?state.endAddr:"");
+    const endPt=state.endMode==="start"?startPt:(endText?await placeOf(G,endText):null);
+    state.startLL=startPt?{lat:startPt.lat,lon:startPt.lon}:null; state.endLL=endPt?{lat:endPt.lat,lon:endPt.lon}:null;
     const located=[], lost=[]; let k=0;
-    for(const s of open){
-      k++; setStatus("מאתר כתובות במפה ("+k+"/"+open.length+")...");
-      const loc=geocode(G,full(s),state.defCity,startPt);
-      let g=await preciseGeocode(G,full(s),state.defCity);
-      if(g&&g.q==="street"&&loc&&loc.q==="street") g=loc;                 // same quality: keep local
-      if(!g) g=loc;
-      s.geo=g?g.q:"none"; if(g) located.push({s,p:{lat:g.lat,lon:g.lon}}); else lost.push(s);
-    }
+    for(const s of open){ k++; setStatus("מאתר כתובות במפה ("+k+"/"+open.length+")..."); const g=await locate(G,s,startPt); if(g) located.push(s); else lost.push(s); }
     setStatus("מחשב את המסלול הקצר ביותר לפי כבישים...");
-    // stops on the same street share a point: merge them so they stay together, ordered by house number
+    // same point (same street) → one stop group, by house number
     const groups=new Map();
-    for(const x of located){ const k=x.p.lat.toFixed(5)+","+x.p.lon.toFixed(5); if(!groups.has(k)) groups.set(k,{p:x.p,list:[]}); groups.get(k).list.push(x.s); }
+    for(const s of located){ const key=s.lat.toFixed(5)+","+s.lon.toFixed(5)+"|"+(s.urgent?1:0)+"|"+(s.after||"")+"|"+(s.before||""); if(!groups.has(key)) groups.set(key,{p:{lat:s.lat,lon:s.lon,urgent:s.urgent,after:s.after,before:s.before},list:[]}); groups.get(key).list.push(s); }
     const G2=[...groups.values()]; G2.forEach(g=>g.list.sort((a,b)=>numOf(a)-numOf(b)));
-    const r=await routeOrder(startPt?{lat:startPt.lat,lon:startPt.lon}:null, G2.map(g=>g.p));
-    const sorted=[]; r.ord.forEach(i=>sorted.push(...G2[i].list));
-    state.stops=[...sorted,...lost,...done]; save(); render();
+    const t0=departSec();
+    const r=await routeOrder(state.startLL, G2.map(g=>g.p), state.endLL, t0);
+    const sorted=[]; let lateN=0;
+    r.ord.forEach((gi,pos)=>{ G2[gi].list.forEach((s,j)=>{ s.leg=j===0?r.legs[pos]:0; s.eta=dayMs(r.etas[pos]+j*SVC); s.late=r.lates[pos]; if(s.late) lateN++; sorted.push(s); }); });
+    lost.forEach(s=>{ s.eta=null; s.leg=null; });
+    state.stops=[...sorted,...lost,...done]; state.line=null; save(); render();
     const approx=open.filter(s=>s.geo==="city").length, exactN=open.filter(s=>s.geo==="house").length;
     let msg;
-    if(r.mx&&r.mx.road) msg="המסלול הקצר ביותר לפי כבישים"+(r.exact?" (נבדקו כל האפשרויות)":"")+": כ־"+Math.round(r.meters/1000)+" ק\"מ, כ־"+Math.round(r.sec/60)+" דקות נסיעה.";
-    else if(r.mx) msg="אין חיבור לשרת הכבישים, לכן סודר לפי קו אווירי: כ־"+Math.round(r.meters/1000)+" ק\"מ משוער.";
-    else msg="המסלול סודר.";
-    msg+=" "+exactN+" מתוך "+open.length+" כתובות אותרו עד רמת הבית"+(gcOffline?" (אין חיבור לשירות המפות – השאר לפי רחוב)":"")+".";
+    if(r.mx.road) msg="המסלול הקצר ביותר לפי כבישים"+(r.exact&&open.length>1?" (נבדקו כל האפשרויות)":"")+": כ־"+Math.round(r.meters/1000)+" ק\"מ, כ־"+Math.round(r.sec/60)+" דקות כולל עצירות"+(state.endLL?" ועד הסיום":"")+".";
+    else msg="אין חיבור לשרת הכבישים, לכן סודר לפי קו אווירי: כ־"+Math.round(r.meters/1000)+" ק\"מ משוער.";
+    msg+=" "+exactN+" מתוך "+open.length+" אותרו עד רמת הבית"+(gcOffline?" (אין חיבור לשירות המפות – השאר לפי רחוב)":"")+".";
+    if(open.some(s=>s.urgent)) msg+=" משלוחים דחופים בהתחלה.";
+    if(lateN) msg+=" ⚠ "+lateN+" עצירות יגיעו אחרי השעה שביקשו – אפשר להזיז ידנית.";
     if(!startPt) msg+=" כדאי למלא נקודת יציאה – אז המסלול מתחיל ממנה.";
-    if(approx) msg+=" "+approx+" כתובות אותרו רק לפי העיר (מסומנות) – הסדר שלהן פחות מדויק.";
-    if(lost.length) msg+=" "+lost.length+" כתובות לא נמצאו במפה והועברו לסוף – בדוק אותן.";
+    if(approx) msg+=" "+approx+" אותרו רק לפי העיר (מסומנות).";
+    if(lost.length) msg+=" "+lost.length+" לא נמצאו במפה והועברו לסוף – בדוק אותן.";
     setStatus(msg);
+    if(!$("#mapBox").hidden) drawMap(true);
+    return r;
   }catch(e){ setStatus("החישוב נכשל. נסה שוב."); }
   finally{ btn.disabled=false; }
+}
+
+/* ---------- map (Leaflet + OpenStreetMap) ---------- */
+let LMAP=null, LLAYER=null, leafletP=null;
+function loadLeaflet(){
+  if(window.L) return Promise.resolve();
+  if(leafletP) return leafletP;
+  leafletP=new Promise((res,rej)=>{
+    const css=document.createElement("link"); css.rel="stylesheet"; css.href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"; document.head.append(css);
+    const s=document.createElement("script"); s.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"; s.onload=res; s.onerror=()=>{leafletP=null;rej();}; document.head.append(s);
+  });
+  return leafletP;
+}
+function pinIcon(txt,cls){ return L.divIcon({className:"",html:'<div class="pin '+cls+'">'+txt+'</div>',iconSize:[28,28],iconAnchor:[14,14]}); }
+async function drawMap(fetchLine){
+  const box=$("#mapBox");
+  try{ await loadLeaflet(); }catch(e){ box.textContent="המפה לא נטענה – בדוק חיבור לאינטרנט."; return; }
+  if(!LMAP){
+    LMAP=L.map(box,{zoomControl:true,attributionControl:true}).setView([32.47,34.97],11);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(LMAP);
+    LLAYER=L.layerGroup().addTo(LMAP);
+  }
+  LLAYER.clearLayers(); setTimeout(()=>LMAP.invalidateSize(),50);
+  const pts=[]; const nextId=(state.stops.find(s=>!s.done)||{}).id;
+  if(state.startLL){ L.marker([state.startLL.lat,state.startLL.lon],{icon:pinIcon("⌂","s"),title:"יציאה"}).addTo(LLAYER); pts.push([state.startLL.lat,state.startLL.lon]); }
+  state.stops.forEach((s,i)=>{ if(s.lat==null) return;
+    const m=L.marker([s.lat,s.lon],{icon:pinIcon(String(i+1),s.done?"done":(s.id===nextId?"next":(s.urgent?"urg":""))),title:full(s)}).addTo(LLAYER);
+    m.bindPopup("<b>"+(i+1)+". "+escapeHtml(full(s))+"</b>"+(s.eta&&!s.done?"<br>הגעה משוערת "+clock(s.eta):""));
+    pts.push([s.lat,s.lon]); });
+  if(state.endLL&&state.endMode!=="start"){ L.marker([state.endLL.lat,state.endLL.lon],{icon:pinIcon("🏁","s"),title:"סיום"}).addTo(LLAYER); pts.push([state.endLL.lat,state.endLL.lon]); }
+  if(!pts.length){ setStatus("אין עדיין נקודות על המפה – לחץ 'סדר מסלול קצר'."); return; }
+  if(fetchLine||!state.line){
+    const seq=[]; if(state.startLL) seq.push(state.startLL);
+    state.stops.forEach(s=>{ if(!s.done&&s.lat!=null) seq.push({lat:s.lat,lon:s.lon}); });
+    if(state.endLL) seq.push(state.endLL);
+    state.line=await roadLine(seq); save();
+  }
+  if(state.line) L.polyline(state.line,{color:"#0B6B3A",weight:5,opacity:.8}).addTo(LLAYER);
+  LMAP.fitBounds(L.latLngBounds(pts).pad(0.15));
+}
+function escapeHtml(t){ return String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* ---------- message to customer ---------- */
+function intlPhone(p){ let d=String(p||"").replace(/[^\d+]/g,""); if(d.startsWith("+")) d=d.slice(1); else if(d.startsWith("0")) d="972"+d.slice(1); return d.length>=11?d:""; }
+function customerMsg(s){
+  const mins=s.eta?Math.max(1,Math.round((s.eta-Date.now())/60000)):null;
+  const hi="שלום"+(s.name?" "+s.name.split(" ")[0]:"")+", ";
+  let body="כאן השליח"+(state.courier?" "+state.courier:"")+". המשלוח שלך ל"+s.addr+" בדרך אליך";
+  if(mins!=null) body+=mins<=90?(", אגיע בעוד כ־"+mins+" דקות (בסביבות "+clock(s.eta)+")"):(", אגיע בסביבות "+clock(s.eta));
+  return hi+body+". תודה!";
+}
+
+/* ---------- delivery report to the manager (Google Form → Google Sheet) ---------- */
+const TRACK={url:"", f:{}};
+function trackQueue(){ try{ return JSON.parse(localStorage.getItem("courier-track-q")||"[]"); }catch(e){ return []; } }
+function trackSaveQ(q){ try{ localStorage.setItem("courier-track-q",JSON.stringify(q.slice(-200))); }catch(e){} }
+function track(s,status,reason){
+  if(!TRACK.url) return;
+  const q=trackQueue();
+  q.push({c:state.courier||"לא צוין",a:full(s),n:s.name||"",p:s.phone||"",st:status,r:reason||"",t:new Date().toLocaleString("he-IL",{hour12:false}),eta:s.eta?clock(s.eta):""});
+  trackSaveQ(q); flushTrack();
+}
+let flushing=false;
+async function flushTrack(){
+  if(!TRACK.url||flushing||!navigator.onLine) return; flushing=true;
+  try{
+    let q=trackQueue();
+    while(q.length){
+      const x=q[0]; const fd=new URLSearchParams();
+      const F=TRACK.f; fd.set(F.c,x.c); fd.set(F.a,x.a); fd.set(F.n,x.n); fd.set(F.p,x.p); fd.set(F.st,x.st); fd.set(F.r,x.r); fd.set(F.t,x.t); fd.set(F.eta,x.eta);
+      await fetch(TRACK.url,{method:"POST",mode:"no-cors",body:fd});
+      q.shift(); trackSaveQ(q);
+    }
+  }catch(e){} finally{ flushing=false; }
+}
+addEventListener("online",flushTrack);
+
+/* ---------- manager: split between couriers + share links ---------- */
+async function packRoute(obj){
+  const raw=new TextEncoder().encode(JSON.stringify(obj)); let bytes=raw, tag="p";
+  if(window.CompressionStream){ try{ const cs=new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate-raw")); bytes=new Uint8Array(await new Response(cs).arrayBuffer()); tag="z"; }catch(e){ bytes=raw; tag="p"; } }
+  let bin=""; bytes.forEach(b=>bin+=String.fromCharCode(b));
+  return tag+btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+async function unpackRoute(str){
+  const tag=str[0]; const b64=str.slice(1).replace(/-/g,"+").replace(/_/g,"/");
+  const bin=atob(b64+"===".slice((b64.length+3)%4)); const bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));
+  let out=bytes;
+  if(tag==="z"){ const ds=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw")); out=new Uint8Array(await new Response(ds).arrayBuffer()); }
+  return JSON.parse(new TextDecoder().decode(out));
+}
+async function splitCrew(){
+  const names=$("#crewNames").value.split(/[,،\n]/).map(x=>x.trim()).filter(Boolean);
+  const out=$("#crewOut"); out.innerHTML=""; out.hidden=false;
+  const open=state.stops.filter(s=>!s.done);
+  if(names.length<1){ out.append(el("p",{class:"hint",text:"כתוב לפחות שם של שליח אחד."})); return; }
+  if(!open.length){ out.append(el("p",{class:"hint",text:"אין משלוחים פתוחים. הוסף קודם את כל המשלוחים של היום למעלה."})); return; }
+  const btn=$("#splitBtn"); btn.disabled=true;
+  try{
+    const G=await loadGeo(); gcOffline=false;
+    const startPt=state.start&&G?await placeOf(G,state.start):null;
+    let k=0; for(const s of open){ k++; out.textContent="מאתר כתובות ("+k+"/"+open.length+")..."; if(G) await locate(G,s,startPt); }
+    out.textContent="";
+    const withLL=open.filter(s=>s.lat!=null), noLL=open.filter(s=>s.lat==null);
+    const c=startPt||(withLL.length?{lat:withLL.reduce((a,s)=>a+s.lat,0)/withLL.length,lon:withLL.reduce((a,s)=>a+s.lon,0)/withLL.length}:{lat:32.47,lon:34.97});
+    // sweep around the start point: neighbouring directions go to the same courier
+    const ang=s=>Math.atan2(s.lat-c.lat,(s.lon-c.lon)*Math.cos(c.lat*Math.PI/180));
+    withLL.sort((a,b)=>ang(a)-ang(b));
+    // rotate so the biggest angular gap is the cut point
+    if(withLL.length>2){ let gi=0,gv=-1; for(let i=0;i<withLL.length;i++){ const a1=ang(withLL[i]), a2=ang(withLL[(i+1)%withLL.length])+(i+1===withLL.length?2*Math.PI:0); if(a2-a1>gv){gv=a2-a1;gi=i+1;} } withLL.push(...withLL.splice(0,gi%withLL.length)); }
+    const N=names.length, groups=names.map(()=>[]);
+    withLL.forEach((s,i)=>groups[Math.min(N-1,Math.floor(i*N/withLL.length))].push(s));
+    noLL.forEach((s,i)=>groups[i%N].push(s));
+    const base=location.origin+location.pathname;
+    for(let g=0;g<N;g++){
+      const list=groups[g];
+      const payload={v:1,c:names[g],s:state.start||"",d:state.defCity||"",em:state.endMode||"none",ea:state.endAddr||"",
+        x:list.map(s=>({a:s.addr,ci:s.city||"",n:s.name||"",p:s.phone||"",o:s.note||"",u:s.urgent?1:0,af:s.after||"",bf:s.before||"",la:s.lat,lo:s.lon,q:s.geo,gk:s.gk}))};
+      const link=base+"#r="+await packRoute(payload);
+      const text="היי "+names[g]+", המסלול שלך להיום ("+list.length+" משלוחים). לחץ על הלינק – הוא נפתח באפליקציה ומסדר את המסלול:\n"+link;
+      const row=el("div",{},el("b",{text:names[g]+" – "+list.length+" משלוחים"}),
+        el("a",{class:"btn primary sm",href:"https://wa.me/?text="+encodeURIComponent(text),target:"_blank",rel:"noopener",text:"שלח בוואטסאפ"}),
+        el("button",{class:"btn ghost sm",type:"button",text:"העתק לינק",onclick:()=>copyText(text,$("#copyOut"))}),
+        el("button",{class:"btn ghost sm",type:"button",text:"פתח כאן",onclick:()=>{ location.hash="r="+link.split("#r=")[1]; }}));
+      out.append(row);
+    }
+    out.append(el("p",{class:"hint",text:"החלוקה לפי כיוון מנקודת היציאה, בערך אותו מספר משלוחים לכל אחד. כל שליח יכול אחר כך לסדר ולהזיז אצלו."}));
+    save();
+  }catch(e){ out.textContent="החלוקה נכשלה. נסה שוב."; }
+  finally{ btn.disabled=false; }
+}
+async function importFromHash(){
+  const m=location.hash.match(/^#r=(.+)$/); if(!m) return;
+  let data=null; try{ data=await unpackRoute(m[1]); }catch(e){ setStatus("הלינק לא תקין או חתוך. בקש מהמנהל לשלוח שוב."); return; }
+  history.replaceState(null,"",location.pathname);
+  if(!data||!Array.isArray(data.x)) return;
+  const hasOpen=!state.example&&state.stops.some(s=>!s.done);
+  if(hasOpen&&!confirm("קיבלת מסלול חדש"+(data.c?" עבור "+data.c:"")+" ("+data.x.length+" משלוחים). להחליף את המסלול הנוכחי?")) return;
+  state.example=false; state.start=data.s||state.start; state.defCity=data.d||state.defCity; state.endMode=data.em||"none"; state.endAddr=data.ea||"";
+  if(data.c) state.courier=data.c;
+  state.stops=data.x.map(x=>({id:uid(),addr:x.a,city:x.ci,name:x.n,phone:x.p,note:x.o,urgent:!!x.u,after:x.af||"",before:x.bf||"",done:false,doneAt:null,lat:x.la??null,lon:x.lo??null,geo:x.q,gk:x.gk}));
+  state.line=null; save(); render();
+  setStatus("התקבל מסלול עם "+data.x.length+" משלוחים. מסדר...");
+  await orderGeo();
+}
+addEventListener("hashchange",importFromHash);
+
+/* ---------- install as an app ---------- */
+let deferredPrompt=null;
+addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); deferredPrompt=e; showInstall(); });
+function showInstall(){
+  const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+  let closed=false; try{ closed=localStorage.getItem("courier-install-closed")==="1"; }catch(e){}
+  if(standalone||closed) return;
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(deferredPrompt){ $("#installBtn").hidden=false; $("#installTxt").textContent="אפשר להתקין את מסלול שליח כאפליקציה על המסך הראשי."; $("#installBanner").hidden=false; }
+  else if(ios){ $("#installTxt").textContent="להתקנה כאפליקציה: לחץ על כפתור השיתוף (ריבוע עם חץ) ← \"הוספה למסך הבית\"."; $("#installBanner").hidden=false; }
 }
 
 /* ---------- ordering ---------- */
@@ -750,8 +1036,10 @@ function copyForWhatsApp(){
 function render(){
   $("#startAddr").value=state.start||""; $("#defCity").value=state.defCity||"";
   $("#exampleBanner").hidden=!state.example;
+  $("#endMode").value=state.endMode||"none"; $("#endAddr").value=state.endAddr||""; $("#endAddrLbl").hidden=(state.endMode!=="custom");
+  $("#departAt").value=state.departAt||""; $("#courierName").value=state.courier||"";
   const total=state.stops.length, done=state.stops.filter(s=>s.done).length;
-  $("#progTxt").textContent=done+"/"+total+" נמסרו";
+  $("#progTxt").textContent=done+"/"+total+" טופלו";
   $("#progBar").style.width=(total?Math.round(done/total*100):0)+"%";
   const ol=$("#stops"); ol.innerHTML="";
   if(!total){
@@ -761,22 +1049,28 @@ function render(){
   const nextId=(state.stops.find(s=>!s.done)||{}).id;
   state.stops.forEach((s,i)=>{
     const isNext=s.id===nextId;
-    const li=el("li",{class:"stop"+(s.done?" done":"")+(isNext?" next":"")});
+    const li=el("li",{class:"stop"+(s.done?" done":"")+(s.failed?" failed":"")+(isNext?" next":"")});
     li.append(el("div",{class:"num","aria-hidden":"true",text:String(i+1)}));
     const a=el("div",{class:"addr"},full(s)); if(isNext) a.append(el("span",{class:"tag",text:"הבא"}));
     li.append(a);
     const meta=el("div",{class:"meta"});
+    if(!s.done&&s.urgent) meta.append(el("span",{class:"chip urgent",text:"דחוף"}));
+    if(!s.done&&(s.after||s.before)) meta.append(el("span",{class:"chip",text:s.after&&s.before?("בין "+s.after+"–"+s.before):(s.after?"לא לפני "+s.after:"עד "+s.before)}));
+    if(!s.done&&s.eta) meta.append(el("span",{class:"chip eta",text:"הגעה ~"+clock(s.eta)+(s.late?" ⚠ מאחר":"")}));
+    if(s.failed) meta.append(el("span",{class:"chip fail",text:"לא נמסר"+(s.reason?": "+s.reason:"")}));
     if(!s.done&&s.geo==="city") meta.append(el("span",{class:"geo",text:"📍 מיקום לפי עיר בלבד"}));
     if(!s.done&&s.geo==="none") meta.append(el("span",{class:"geo bad",text:"⚠ לא נמצא במפה"}));
     if(s.name) meta.append(el("span",{},el("b",{text:s.name})));
     if(s.phone) meta.append(el("span",{},"☎ ",el("a",{href:"tel:"+s.phone.replace(/[^\d+]/g,""),text:s.phone})));
     if(s.note) meta.append(el("span",{text:s.note}));
-    if(s.done&&s.doneAt) meta.append(el("span",{text:"נמסר "+new Date(s.doneAt).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"})}));
+    if(s.done&&s.doneAt&&!s.failed) meta.append(el("span",{text:"נמסר "+clock(s.doneAt)}));
     li.append(meta);
     const act=el("div",{class:"sactions"},
       el("a",{class:"btn primary",href:waze(full(s)),target:"_blank",rel:"noopener",text:"Waze"}),
       el("a",{class:"btn ghost",href:gmaps(full(s)),target:"_blank",rel:"noopener",text:"גוגל מפות"}),
-      el("button",{class:"btn "+(s.done?"ghost":"amber"),type:"button",onclick:()=>{s.done=!s.done;s.doneAt=s.done?Date.now():null;save();render();},text:s.done?"בטל מסירה":"נמסר ✓"}),
+      el("button",{class:"btn "+(s.done?"ghost":"amber"),type:"button",onclick:()=>markDone(s,!s.done),text:s.done?(s.failed?"בטל":"בטל מסירה"):"נמסר ✓"}),
+      (!s.done?el("button",{class:"btn ghost",type:"button",onclick:()=>markFailed(s),text:"לא נמסר"}):null),
+      (!s.done&&intlPhone(s.phone)?el("a",{class:"btn ghost",href:"https://wa.me/"+intlPhone(s.phone)+"?text="+encodeURIComponent(customerMsg(s)),target:"_blank",rel:"noopener",text:"📲 הודעה ללקוח"}):null),
       el("button",{class:"btn ghost sm",type:"button","aria-label":"הזז למעלה",onclick:()=>move(i,-1),disabled:i===0?"":null,text:"▲"}),
       el("button",{class:"btn ghost sm",type:"button","aria-label":"הזז למטה",onclick:()=>move(i,1),disabled:i===total-1?"":null,text:"▼"}),
       el("button",{class:"btn ghost sm",type:"button",onclick:()=>editStop(li,s),text:"עריכה"})
@@ -785,14 +1079,31 @@ function render(){
     ol.append(li);
   });
 }
+function askCourier(){
+  if(state.courier||!TRACK.url) return;
+  const n=prompt("מה השם שלך? (יופיע בדיווח למנהל)"); if(n&&n.trim()){ state.courier=n.trim(); save(); }
+}
+function markDone(s,on){
+  if(on){ askCourier(); s.done=true; s.failed=false; s.reason=""; s.doneAt=Date.now(); track(s,"נמסר",""); recomputeEta(); }
+  else { const was=s.failed?"ביטול 'לא נמסר'":"ביטול מסירה"; s.done=false; s.failed=false; s.reason=""; s.doneAt=null; track(s,was,""); }
+  save(); render(); if(!$("#mapBox").hidden) drawMap(false);
+}
+function markFailed(s){
+  const r=prompt("למה לא נמסר? (למשל: לא בבית, כתובת שגויה, לא עונה)",""); if(r===null) return;
+  askCourier(); s.done=true; s.failed=true; s.reason=r.trim(); s.doneAt=Date.now(); track(s,"לא נמסר",s.reason); recomputeEta(); save(); render();
+}
 function move(i,d){ const j=i+d; if(j<0||j>=state.stops.length) return; const a=state.stops; [a[i],a[j]]=[a[j],a[i]]; save(); render(); }
 function editStop(li,s){
   if(li.querySelector(".edit")) return;
   const f=(lbl,val,key)=>{const id="e_"+key+"_"+s.id; const inp=el("input",{type:"text",id,value:val||""}); return [el("label",{class:"f",for:id},lbl,inp),inp];};
   const [l1,i1]=f("כתובת",s.addr,"addr"),[l2,i2]=f("עיר",s.city,"city"),[l3,i3]=f("שם",s.name,"name"),[l4,i4]=f("טלפון",s.phone,"phone"),[l5,i5]=f("הערה",s.note,"note");
+  const uId="e_u_"+s.id, aId="e_a_"+s.id, bId="e_b_"+s.id;
+  const iu=el("input",{type:"checkbox",id:uId}); iu.checked=!!s.urgent;
+  const ia=el("input",{type:"time",id:aId,value:s.after||""}), ib=el("input",{type:"time",id:bId,value:s.before||""});
   const box=el("div",{class:"edit"},el("div",{class:"row"},l1,l2),el("div",{class:"row"},l3,l4,l5),
+    el("div",{class:"row",style:"align-items:end"},el("label",{class:"chk",for:uId},iu," דחוף – בהתחלה"),el("label",{class:"f",for:aId},"לא לפני",ia),el("label",{class:"f",for:bId},"עד השעה",ib)),
     el("div",{class:"actions"},
-      el("button",{class:"btn primary",type:"button",text:"שמור",onclick:()=>{ if(!i1.value.trim()) return; s.geo=undefined; Object.assign(s,{addr:i1.value.trim(),city:i2.value.trim(),name:i3.value.trim(),phone:i4.value.trim(),note:i5.value.trim()}); save(); render(); }}),
+      el("button",{class:"btn primary",type:"button",text:"שמור",onclick:()=>{ if(!i1.value.trim()) return; Object.assign(s,{addr:i1.value.trim(),city:i2.value.trim(),name:i3.value.trim(),phone:i4.value.trim(),note:i5.value.trim(),urgent:iu.checked,after:ia.value||"",before:ib.value||""}); if(s.gk!==full(s)){ s.geo=undefined; s.lat=null; s.lon=null; s.eta=null; } save(); render(); }}),
       el("button",{class:"btn ghost",type:"button",text:"ביטול",onclick:()=>render()}),
       el("button",{class:"btn danger",type:"button",text:"מחק עצירה",onclick:()=>{ state.stops=state.stops.filter(x=>x.id!==s.id); save(); render(); setStatus("העצירה נמחקה."); }})
     ));
@@ -817,9 +1128,18 @@ $("#xlFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) rea
 ["mAddr","mNum","mCity","mName","mPhone","mNote"].forEach(id=>$("#"+id).addEventListener("change",renderXlPreview));
 $("#xlAdd").addEventListener("click",()=>{ addStops(xlItems()); $("#xlMap").hidden=true; $("#xlFile").value=""; });
 $("#manForm").addEventListener("submit",e=>{ e.preventDefault(); const v=id=>$("#"+id).value.trim(); if(!v("manAddr")) return;
-  addStops([{addr:v("manAddr"),city:v("manCity"),name:v("manName"),phone:v("manPhone"),note:v("manNote")}]);
-  ["manAddr","manCity","manName","manPhone","manNote"].forEach(id=>$("#"+id).value=""); $("#manAddr").focus(); });
+  addStops([{addr:v("manAddr"),city:v("manCity"),name:v("manName"),phone:v("manPhone"),note:v("manNote"),urgent:$("#manUrgent").checked,after:v("manAfter"),before:v("manBefore")}]);
+  ["manAddr","manCity","manName","manPhone","manNote","manAfter","manBefore"].forEach(id=>$("#"+id).value=""); $("#manUrgent").checked=false; $("#manAddr").focus(); });
 $("#orderBasic").addEventListener("click",orderBasic);
+$("#endMode").addEventListener("change",e=>{state.endMode=e.target.value;save();render();});
+$("#endAddr").addEventListener("change",e=>{state.endAddr=e.target.value.trim();save();});
+$("#departAt").addEventListener("change",e=>{state.departAt=e.target.value||"";save();});
+$("#courierName").addEventListener("change",e=>{state.courier=e.target.value.trim();save();});
+$("#mapBtn").addEventListener("click",()=>{ const b=$("#mapBox"); b.hidden=!b.hidden; $("#mapBtn").textContent=b.hidden?"מפה":"סגור מפה"; if(!b.hidden) drawMap(false); });
+$("#splitBtn").addEventListener("click",splitCrew);
+$("#installBtn").addEventListener("click",async()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); try{ await deferredPrompt.userChoice; }catch(e){} deferredPrompt=null; $("#installBanner").hidden=true; });
+$("#installClose").addEventListener("click",()=>{ $("#installBanner").hidden=true; try{ localStorage.setItem("courier-install-closed","1"); }catch(e){} });
+$("#trackHint").textContent=TRACK.url?"כל לחיצה על 'נמסר' או 'לא נמסר' נרשמת בגיליון המעקב של המנהל.":"";
 $("#orderGeo").addEventListener("click",orderGeo);
 $("#openGmaps").addEventListener("click",gmapsRoutes);
 $("#copyWa").addEventListener("click",copyForWhatsApp);
@@ -832,8 +1152,9 @@ $("#clearAll").addEventListener("click",e=>{
   state.stops=[]; state.example=false; save(); render(); $("#gmapsLinks").hidden=true; setStatus("המסלול נוקה.");
 });
 render();
-
-
+setTimeout(showInstall,1500);
+flushTrack();
+importFromHash();
 
 (async()=>{
   try{
