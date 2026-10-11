@@ -1,8 +1,9 @@
--- הרצה ב-Supabase SQL Editor (קריאה בלבד): מחזיר תא אחד (ddl) עם כל הסכמה. להעתיק את התא ולשמור כ-team/supabase/schema.sql
--- read-only schema dump (public + triggers on auth.users)
+-- READ-ONLY export of the itech-shifts schema. Changes nothing.
+-- Run in Supabase SQL Editor. If a 'Potential issue' popup appears, choose 'Run without RLS'.
+-- Copy the single 'ddl' cell and save it as team/supabase/schema.sql
 with
 tbl as (
-  select 10 ord, c.relname nm, 'create table if not exists public.'||quote_ident(c.relname)||E' (\n  '||
+  select 10 ord, c.relname nm, 'create '||'table if not exists public.'||quote_ident(c.relname)||E' (\n  '||
     string_agg(quote_ident(a.attname)||' '||format_type(a.atttypid,a.atttypmod)||
       coalesce(' default '||pg_get_expr(d.adbin,d.adrelid),'')||case when a.attnotnull then ' not null' else '' end, E',\n  ' order by a.attnum)||E'\n);' s
   from pg_class c join pg_namespace n on n.oid=c.relnamespace and n.nspname='public'
@@ -38,7 +39,7 @@ tg as (
   from information_schema.role_table_grants where table_schema='public' and grantee in ('anon','authenticated')),
 fg as (
   select 90 ord, p.proname||p.oid nm,
-    'function public.'||p.proname||'('||pg_get_function_identity_arguments(p.oid)||') security '||case when p.prosecdef then 'definer' else 'invoker' end||
+    '-- function public.'||p.proname||'('||pg_get_function_identity_arguments(p.oid)||') security '||case when p.prosecdef then 'definer' else 'invoker' end||
     ' | acl: '||coalesce(array_to_string(p.proacl,' '),'(default: PUBLIC execute)') s
   from pg_proc p where p.pronamespace='public'::regnamespace and p.prokind='f'),
 allx as (select * from tbl union all select * from con union all select * from idx union all select * from fn union all select * from vw
